@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-palette="#2a78d6,#eb6834,#1baf7a,#eda100,#e87ba4,#008300,#4a3aa7,#e34948">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>北京—山东高速通道假期流量分布预测 · 2026 国庆</title>
+<meta name="description" content="按天切换的京津冀鲁路网断面流量分布预测：G2 京沪、G3 京台、G25 长深、G4 京港澳/G20 青银四条北京进入山东的主通道。含拥堵等级配色、主导流向箭头与逐路段明细表。">
+<style>
+  :root {
+    color-scheme: light;
+    --page:          #f9f9f7;
+    --surface-1:     #fcfcfb;
+    --surface-2:     #f2f1ec;
+    --text-primary:  #0b0b0b;
+    --text-secondary:#52514e;
+    --text-muted:    #898781;
+    --grid:          #e1e0d9;
+    --axis:          #c3c2b7;
+    --border:        rgba(11,11,11,0.10);
+    --series-1:      #2a78d6;
+    /* 语义热度色阶（semantic heat）：畅通→缓行→拥堵→极端拥堵
+       验证（light, categorical 六检）CVD ΔE 16.2 / 正常色觉 24.1，均达标。
+       eda100 对浅色底 2.11:1 < 3:1 → 按 relief 规则由图例文字 + 表格视图兜底。*/
+    --sev-1:         #008300;
+    --sev-2:         #eda100;
+    --sev-3:         #d03b3b;
+    --sev-4:         #4a3aa7;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --page:          #0d0d0d;
+      --surface-1:     #1a1a19;
+      --surface-2:     #232322;
+      --text-primary:  #ffffff;
+      --text-secondary:#c3c2b7;
+      --text-muted:    #898781;
+      --grid:          #2c2c2a;
+      --axis:          #383835;
+      --border:        rgba(255,255,255,0.10);
+      --series-1:      #3987e5;
+      --sev-1:         #0ca30c;
+      --sev-2:         #fab219;
+      --sev-3:         #e66767;
+      --sev-4:         #9085e9;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page:          #0d0d0d;
+    --surface-1:     #1a1a19;
+    --surface-2:     #232322;
+    --text-primary:  #ffffff;
+    --text-secondary:#c3c2b7;
+    --text-muted:    #898781;
+    --grid:          #2c2c2a;
+    --axis:          #383835;
+    --border:        rgba(255,255,255,0.10);
+    --series-1:      #3987e5;
+    --sev-1:         #0ca30c;
+    --sev-2:         #fab219;
+    --sev-3:         #e66767;
+    --sev-4:         #9085e9;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--page);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 28px 20px 64px; }
+
+  /* ---------- header ---------- */
+  h1 { font-size: 21px; font-weight: 650; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .sub { color: var(--text-secondary); font-size: 13px; margin: 0 0 2px; max-width: 78ch; }
+  .caveat { color: var(--text-muted); font-size: 12px; margin: 6px 0 0; max-width: 78ch; }
+
+  /* ---------- filter row (one row, above everything it scopes) ---------- */
+  .filters {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+    margin: 22px 0 18px; padding: 10px 12px;
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px;
+  }
+  .filters .flabel { color: var(--text-muted); font-size: 12px; margin-right: 2px; }
+  .daybtn {
+    appearance: none; cursor: pointer; font: inherit; font-size: 13px;
+    background: transparent; color: var(--text-secondary);
+    border: 1px solid var(--border); border-radius: 7px;
+    padding: 5px 11px 6px; min-height: 30px; line-height: 1.2;
+    display: inline-flex; flex-direction: column; align-items: center; gap: 1px;
+  }
+  .daybtn b { font-weight: 600; font-size: 13px; }
+  .daybtn span { font-size: 10.5px; color: var(--text-muted); }
+  .daybtn:hover { background: var(--surface-2); }
+  .daybtn[aria-pressed="true"] {
+    background: var(--series-1); border-color: var(--series-1); color: #fff;
+  }
+  .daybtn[aria-pressed="true"] span { color: rgba(255,255,255,0.82); }
+  .daybtn:focus-visible { outline: 2px solid var(--series-1); outline-offset: 2px; }
+  .spacer { flex: 1 1 auto; }
+  .ghost {
+    appearance: none; cursor: pointer; font: inherit; font-size: 12.5px;
+    background: transparent; color: var(--text-secondary);
+    border: 1px solid var(--border); border-radius: 7px; padding: 6px 11px; min-height: 30px;
+  }
+  .ghost:hover { background: var(--surface-2); }
+  .ghost[aria-pressed="true"] { background: var(--surface-2); color: var(--text-primary); }
+  .ghost:focus-visible { outline: 2px solid var(--series-1); outline-offset: 2px; }
+
+  /* ---------- stat tiles ---------- */
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
+  @media (max-width: 860px) { .tiles { grid-template-columns: repeat(2, 1fr); } }
+  .tile {
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 10px; padding: 13px 15px 14px;
+  }
+  .tile .k { color: var(--text-muted); font-size: 11.5px; letter-spacing: .02em; }
+  .tile .v { font-size: 26px; font-weight: 640; letter-spacing: -0.02em; margin-top: 3px; }
+  .tile .v small { font-size: 13px; font-weight: 500; color: var(--text-secondary); margin-left: 3px; }
+  .tile .n { color: var(--text-secondary); font-size: 12px; margin-top: 2px; }
+
+  /* ---------- cards ---------- */
+  .card {
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px 18px 14px; margin-bottom: 16px;
+  }
+  .card h2 { font-size: 14.5px; font-weight: 620; margin: 0 0 2px; }
+  .card .h2sub { color: var(--text-muted); font-size: 12px; margin: 0 0 10px; }
+
+  /* ---------- legend ---------- */
+  .legend { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 8px 0 0; }
+  .ramp { display: flex; align-items: stretch; gap: 2px; margin-top: 5px; }
+  .ramp .step { width: 56px; }
+  .ramp .step i { display: block; height: 9px; }
+  .ramp .step:first-child i { border-radius: 2px 0 0 2px; }
+  .ramp .step:last-child i  { border-radius: 0 2px 2px 0; }
+  .ramp .nm {
+    display: block; font-size: 11px; color: var(--text-secondary);
+    padding-top: 4px; white-space: nowrap;
+  }
+  .ramp .lab {
+    display: block; font-size: 10.5px; color: var(--text-muted);
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  .ramp-title { font-size: 11.5px; color: var(--text-muted); }
+  .widthkey { display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--text-muted); }
+  .widthkey svg { display: block; }
+
+  /* ---------- map ---------- */
+  .mapwrap { position: relative; }
+  svg.map { display: block; width: 100%; height: auto; }
+  .land { fill: var(--surface-2); stroke: var(--axis); stroke-width: 1; }
+  .seg-casing { stroke: var(--surface-1); fill: none; stroke-linecap: round; }
+  .seg-halo   { stroke: var(--surface-1); fill: none; stroke-linecap: round; }
+  .seg        { fill: none; stroke-linecap: round; }
+  .hit        { fill: none; stroke: transparent; stroke-width: 26; stroke-linecap: round; cursor: pointer; }
+  .hit:focus  { outline: none; }
+  .hit:focus-visible + .seg { stroke-dasharray: none; }
+  .seg.focused { }
+  .arrow      { stroke: var(--surface-1); stroke-width: 2.2; stroke-linejoin: round; }
+  .node       { fill: var(--text-primary); }
+  .node-out   { fill: none; stroke: var(--text-primary); stroke-width: 1.6; }
+  .node-origin      { fill: var(--text-primary); }
+  .node-origin-ring { fill: none; stroke: var(--text-primary); stroke-width: 1.4; }
+  .nlabel.strong    { font-size: 12.5px; font-weight: 620; fill: var(--text-primary); }
+  .refdot    { fill: var(--text-muted); }
+  .sealab    { fill: var(--text-muted); font-size: 11px; letter-spacing: .35em;
+               text-anchor: middle; }
+  .reglab    { fill: var(--text-muted); font-size: 13px; letter-spacing: .5em;
+               text-anchor: middle; }
+  .nlabel     { fill: var(--text-secondary); font-size: 11px; paint-order: stroke;
+                stroke: var(--surface-1); stroke-width: 3px; stroke-linejoin: round; }
+  .nlabel.xs  { font-size: 10px; fill: var(--text-muted); }
+  .scenic     { fill: none; stroke: var(--text-muted); stroke-width: 1.2; }
+  .slabel     { fill: var(--text-muted); font-size: 9.5px; paint-order: stroke;
+                stroke: var(--surface-1); stroke-width: 3px; stroke-linejoin: round; }
+  .hwlabel    { fill: var(--text-muted); font-size: 9px; paint-order: stroke;
+                stroke: var(--surface-1); stroke-width: 3px; }
+
+  /* ---------- tooltip ---------- */
+  .tip {
+    position: absolute; pointer-events: none; z-index: 30; opacity: 0;
+    transform: translate(-50%, -100%);
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 10px 9px; min-width: 168px;
+    box-shadow: 0 4px 16px rgba(0,0,0,.14);
+    transition: opacity .1s linear;
+  }
+  .tip .t-name { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
+  .tip .t-big { font-size: 17px; font-weight: 640; letter-spacing: -0.01em; }
+  .tip .t-big small { font-size: 11px; font-weight: 500; color: var(--text-secondary); }
+  .tip .t-row { display: flex; align-items: baseline; gap: 6px; font-size: 11.5px; color: var(--text-secondary); margin-top: 3px; }
+  /* 方向键用中性墨色而非严重度色：色相只承载拥堵等级，不暗示两个方向等级不同 */
+  .tip .t-key { display: inline-block; width: 14px; height: 2px; background: currentColor; border-radius: 1px; flex: none; position: relative; top: -3px; }
+  .tip .t-key.alt { opacity: 0.42; }
+  .tip .t-row b { color: var(--text-primary); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .tip .t-dom { margin-top: 5px; padding-top: 5px; border-top: 1px solid var(--grid); font-size: 11px; color: var(--text-secondary); }
+
+  /* ---------- hourly chart ---------- */
+  svg.hour { display: block; width: 100%; height: auto; }
+  .h-grid { stroke: var(--grid); stroke-width: 1; }
+  .h-axis { stroke: var(--axis); stroke-width: 1; }
+  .h-tick { fill: var(--text-muted); font-size: 10px; font-variant-numeric: tabular-nums; }
+  .h-ctx  { stroke: var(--axis); stroke-width: 1.5; fill: none; }
+  .h-line { stroke: var(--series-1); stroke-width: 2; fill: none; }
+  .h-area { fill: var(--series-1); opacity: .09; }
+  .h-dot  { fill: var(--series-1); stroke: var(--surface-1); stroke-width: 2; }
+  .h-plab { fill: var(--text-primary); font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .h-psub { fill: var(--text-muted); font-size: 10px; }
+  .h-cross { stroke: var(--axis); stroke-width: 1; }
+  /* 用 fill-opacity 而非 opacity：CSS 的 opacity 会覆盖元素上的 opacity 呈现属性，
+     导致未悬停时高亮带常亮。fill-opacity 与之正交，由属性 opacity 控可见性。*/
+  .h-hover { fill: var(--series-1); fill-opacity: .18; }
+
+  /* ---------- table view ---------- */
+  #tableview[hidden] { display: none; }
+  .tablescroll { max-height: 460px; overflow: auto; border: 1px solid var(--border); border-radius: 8px; }
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+  th, td { padding: 7px 10px; text-align: right; white-space: nowrap; }
+  th { position: sticky; top: 0; background: var(--surface-1); color: var(--text-muted);
+       font-weight: 500; font-size: 11.5px; border-bottom: 1px solid var(--axis); z-index: 1; }
+  td { border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; color: var(--text-secondary); }
+  tbody tr:last-child td { border-bottom: none; }
+  td.l, th.l { text-align: left; font-variant-numeric: normal; }
+  td.name { color: var(--text-primary); }
+  .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+  .vc-hi { color: #d03b3b; font-weight: 600; }
+  .vc-mid { color: #b06d00; font-weight: 600; }
+
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  footer { color: var(--text-muted); font-size: 11.5px; margin-top: 26px; max-width: 82ch; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>北京—山东高速通道假期流量分布预测 · 2026 国庆假期</h1>
+  <p class="sub">按天切换的京津冀鲁路网断面流量分布，覆盖<b>京沪（G2）、京台（G3）、长深（G25）、京港澳（G4）/青银（G20）</b>四条北京进入山东的主通道。<strong>线宽 = 车道数；颜色 = 拥堵等级</strong>，按国内路况图的语义热度色标，绿（畅通）→黄（缓行）→红（拥堵）→紫（极端拥堵），分档阈值见图例与表格视图；路段上的箭头指向当日主导流向。</p>
+  <p class="caveat">本图为<b>结构化推演结果，不是官方发布数据</b>：陆域与路网走向为示意，流量由路网等级、目的地权重、逐日出行/返程比例与分时曲线推算得到。用于研判形态与相对关系，不能替代各地高速公路运营单位与公安交管部门的实测断面流量。</p>
+
+  <!-- one filter row, above everything it scopes -->
+  <div class="filters" role="group" aria-label="预测日筛选">
+    <span class="flabel">预测日</span>
+    <div id="daybtns" style="display:flex; gap:6px; flex-wrap:wrap;"></div>
+    <span class="spacer"></span>
+    <button class="ghost" id="tablebtn" aria-pressed="false" aria-controls="tableview">表格视图</button>
+    <button class="ghost" id="themebtn">深色</button>
+  </div>
+
+  <!-- stat tiles -->
+  <div class="tiles" id="tiles"></div>
+
+  <!-- map -->
+  <div class="card">
+    <h2 id="maptitle">京津冀鲁高速路网日流量分布</h2>
+    <p class="h2sub" id="mapsub"></p>
+    <div class="mapwrap">
+      <svg class="map" id="map" viewBox="0 0 900 760" role="img" aria-labelledby="maptitle mapsub"></svg>
+      <div class="tip" id="tip" role="status" aria-live="off"></div>
+    </div>
+    <div class="legend">
+      <div>
+        <div class="ramp-title">拥堵等级 · 双向合计日流量（万辆次/日）</div>
+        <div class="ramp" id="ramp"></div>
+      </div>
+      <div class="widthkey" id="widthkey"></div>
+      <div class="widthkey">
+        <svg width="14" height="10" aria-hidden="true"><path d="M4 5 L11 5" stroke="currentColor" stroke-width="1.4" fill="none" marker-end="url(#ar)"/><defs><marker id="ar" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto"><path d="M0 0 L5 2.5 L0 5 z" fill="currentColor"/></marker></defs></svg>
+        箭头 = 当日方向性最强的 10 条路段及其主导流向
+      </div>
+      <div class="widthkey">
+        <svg width="14" height="14" aria-hidden="true"><rect x="2" y="2" width="10" height="10" rx="2" fill="currentColor"/></svg>
+        实心方框 = 通道起点（北京）
+      </div>
+      <div class="widthkey">
+        <svg width="12" height="12" aria-hidden="true"><rect x="3" y="3" width="6" height="6" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+        空心方块 = 出省通道口
+      </div>
+    </div>
+  </div>
+
+  <!-- hourly -->
+  <div class="card">
+    <h2>山东省域分时流量曲线</h2>
+    <p class="h2sub" id="hoursub"></p>
+    <svg class="hour" id="hour" viewBox="0 0 900 230" role="img" aria-labelledby="hourtitle"></svg>
+  </div>
+
+  <!-- table twin -->
+  <div class="card" id="tableview" hidden>
+    <h2>路段流量明细表</h2>
+    <p class="h2sub" id="tablesub"></p>
+    <div class="tablescroll">
+      <table>
+        <thead><tr>
+          <th class="l">#</th><th class="l">路段</th><th class="l">高速</th><th class="l">两端属地</th>
+          <th>车道</th><th>双向合计</th><th>主导方向流量</th><th>饱和度</th>
+        </tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <footer>
+    口径：流量为小客车为主的断面流量估算值，双向合计。标定系数由<b>山东省内路段</b>反推（使省域日合计等于折线所示总量），京津冀走廊段按同一系数折算，因此扩展路网后山东口径的数字不变。
+    饱和度 = 日流量 ÷ 该路段按车道数估算的通行能力（4 车道 11.6、6 车道 17.4、8 车道 23.2 万辆次/日），仅为量级参照，非 HCM 意义上的通行能力。
+    京沪/京台在廊坊—天津—沧州段为并线路廊，图中以三条平行线示意，不代表各线车道数。
+    假期免费通行按 10 月 1 日 00:00 至 10 月 7 日 24:00 假设，实际以国务院办公厅放假安排及主管部门通知为准。
+  </footer>
+
+  <p class="sr" id="live" aria-live="polite"></p>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  /* ===================== 假期日定义 ===================== */
+  const DAYS = [
+    { id:'10-01', d:'10/1', wd:'周四', name:'出发日',      type:'out',   out:1.34, back:0.76, target:285 },
+    { id:'10-02', d:'10/2', wd:'周五', name:'出行高峰',    type:'out',   out:1.30, back:0.80, target:395 },
+    { id:'10-03', d:'10/3', wd:'周六', name:'出行高峰',    type:'out',   out:1.24, back:0.86, target:418 },
+    { id:'10-04', d:'10/4', wd:'周日', name:'平台日',      type:'flat',  out:1.04, back:1.02, target:356 },
+    { id:'10-05', d:'10/5', wd:'周一', name:'平台日',      type:'flat',  out:0.98, back:1.06, target:332 },
+    { id:'10-06', d:'10/6', wd:'周二', name:'返程启动',    type:'back',  out:0.84, back:1.32, target:361 },
+    { id:'10-07', d:'10/7', wd:'周三', name:'返程高峰',    type:'back2', out:0.66, back:1.52, target:392 }
+  ];
+
+  /* 分时权重（自动归一化） */
+  const HOUR = {
+    out:   [.008,.006,.005,.005,.007,.014,.030,.058,.070,.068,.066,.063,.058,.056,.058,.060,.060,.056,.048,.040,.034,.030,.022,.014],
+    flat:  [.014,.010,.008,.007,.008,.014,.026,.042,.050,.052,.053,.052,.050,.050,.052,.052,.050,.046,.042,.038,.034,.030,.024,.018],
+    back:  [.020,.016,.012,.010,.016,.030,.052,.072,.078,.070,.060,.050,.044,.044,.048,.052,.054,.054,.050,.046,.042,.038,.032,.024],
+    back2: [.026,.022,.017,.013,.018,.034,.058,.080,.086,.074,.060,.048,.040,.040,.044,.048,.050,.050,.046,.042,.038,.034,.028,.022]
+  };
+  const norm = a => { const s = a.reduce((x,y)=>x+y,0); return a.map(v => v/s); };
+  for (const k in HOUR) HOUR[k] = norm(HOUR[k]);
+
+  /* ===================== 路网 ===================== */
+  // name, lon, lat, kind(city|out), label offset
+  const N = {
+    jn:  ['济南',      117.00, 36.65, 'city',  6, 6],
+    qd:  ['青岛',      120.38, 36.07, 'city',  6, 12],
+    zb:  ['淄博',      118.05, 36.81, 'city', -6, -12],
+    de:  ['德州',      116.31, 37.44, 'city', -6, -6],
+    dy:  ['东营',      118.67, 37.43, 'city',  6, -6],
+    yt:  ['烟台',      121.39, 37.52, 'city',  6, -6],
+    wfs: ['潍坊',      119.10, 36.71, 'city',  6, -6],
+    jn2: ['济宁',      116.59, 35.41, 'city', -6, 12],
+    ta:  ['泰安',      117.09, 36.20, 'city', -7, 8],
+    wh:  ['威海',      122.12, 37.51, 'city',  6, -6],
+    rz:  ['日照',      119.53, 35.42, 'city',  6, 10],
+    ly:  ['临沂',      118.35, 35.05, 'city',  6, 12],
+    lc:  ['聊城',      115.98, 36.46, 'city', -6, 6],
+    bz:  ['滨州',      118.02, 37.38, 'city', -6, -10],
+    hz:  ['菏泽',      115.48, 35.23, 'city', -6, 10],
+    zz:  ['枣庄',      117.56, 34.86, 'city',  6, 10],
+    yz:  ['曲阜·兖州', 116.83, 35.55, 'city', -6, -10],
+    pl:  ['蓬莱·长岛', 120.76, 37.81, 'city',  6, -8],
+    // 北京—山东主通道（京津冀段）
+    bj:  ['北京',      116.41, 39.90, 'origin', 9, 4],
+    lf:  ['廊坊',      116.70, 39.52, 'city',  -8, 5],
+    tj:  ['天津',      117.20, 39.13, 'city',   8, 4],
+    cz:  ['沧州',      116.85, 38.30, 'city',  -8, 5],
+    hj:  ['黄骅',      117.35, 38.37, 'city',   8, 4],
+    bd:  ['保定',      115.48, 38.87, 'city',  -8, 5],
+    xt:  ['邢台',      114.51, 37.07, 'city',  -8, 5],
+    // 出省通道口
+    sjz: ['石家庄',    114.51, 38.04, 'out',   -8, -8],
+    xy:  ['新沂(苏)',  118.35, 34.30, 'out',   6, 10],
+    xz:  ['徐州(苏)',  117.18, 34.26, 'out',   6, 10],
+    lyg: ['连云港(苏)',119.22, 34.60, 'out',   6, 10],
+    zz2: ['郑州(豫)',  113.65, 34.75, 'out',   6, 10]
+  };
+  // 未列出的节点默认属地山东
+  const REGION = { bj:'北京', lf:'河北', tj:'天津', cz:'河北', hj:'河北',
+                   bd:'河北', xt:'河北', sjz:'河北',
+                   xy:'江苏', xz:'江苏', lyg:'江苏', zz2:'河南' };
+  const reg = k => REGION[k] || '山东';
+  // a, b, 高速, 车道, fwd(A→B), bwd(B→A), 出省?, 垂向偏移px, 口径('C'=京津冀通道段, 缺省=山东)
+  const E = [
+    // ---- 北京—天津—河北—山东 主通道（京津冀段，流量主要由京/津/冀出行生成，
+    //      不计入山东省域合计，单列为"入鲁通道"统计）----
+    ['bj','lf',  'G2 京沪',   8, 0.95, 1.00, 0, 0,    'C'],
+    ['lf','tj',  'G2 京沪',   8, 0.92, 0.96, 0, 0,    'C'],
+    ['tj','cz',  'G2 京沪',   8, 0.98, 1.00, 0, 0,    'C'],
+    ['cz','de',  'G2 京沪',   8, 0.90, 0.88, 0, 0,    'C'],
+    ['bj','lf',  'G3 京台',   8, 0.88, 0.92, 0, -11,  'C'],
+    ['lf','tj',  'G3 京台',   8, 0.85, 0.88, 0, -11,  'C'],
+    ['tj','cz',  'G3 京台',   8, 0.90, 0.92, 0, -11,  'C'],
+    ['cz','de',  'G3 京台',   8, 0.85, 0.82, 0, -11,  'C'],
+    ['bj','lf',  'G25 长深',  8, 0.55, 0.52, 0, 11,   'C'],
+    ['lf','tj',  'G25 长深',  8, 0.52, 0.50, 0, 11,   'C'],
+    ['tj','hj',  'G25 长深',  8, 0.50, 0.48, 0, 0,    'C'],
+    ['hj','bz',  'G18 荣乌',  6, 0.58, 0.54, 0, 0,    'C'],
+    ['bj','bd',  'G4 京港澳', 8, 0.60, 0.57, 0, 0,    'C'],
+    ['bd','sjz', 'G4 京港澳', 8, 0.48, 0.45, 0, 0,    'C'],
+    ['sjz','xt', 'G4 / G20',  8, 0.32, 0.30, 0, 0,    'C'],
+    ['xt','jn',  'G20 青银',  8, 0.52, 0.49, 0, 0,    'C'],
+    // ---- 山东省内 ----
+    ['de','jn',  'G2 京沪',   8, 0.62, 0.55, 0, 0],
+    ['jn','ta',  'G2 京沪',   6, 0.85, 0.78, 0, 0],
+    ['ta','ly',  'G2 京沪',   6, 1.00, 0.92, 0, 0],
+    ['ly','xy',  'G2 京沪',   8, 0.88, 0.95, 1, 0],
+    ['lc','jn',  'G3 京台',   6, 0.48, 0.45, 0, 0],
+    ['jn','ta',  'G3 京台',   6, 0.70, 0.62, 0, -7],
+    ['ta','yz',  'G3 京台',   6, 0.95, 0.85, 0, 0],
+    ['yz','jn2', 'G3 京台',   6, 0.72, 0.66, 0, 0],
+    ['jn2','zz', 'G3 京台',   6, 0.68, 0.60, 0, 0],
+    ['zz','xz',  'G3 京台',   6, 0.82, 0.95, 1, 0],
+    ['qd','wfs', 'G20 青银',  8, 0.80, 0.72, 0, 0],
+    ['wfs','zb', 'G20 青银',  8, 0.58, 0.52, 0, 0],
+    ['zb','jn',  'G20 青银',  8, 0.66, 0.60, 0, 0],
+    ['jn','zb',  'S21 济青',  8, 0.78, 0.72, 0, -8],
+    ['zb','wfs', 'S21 济青',  8, 0.62, 0.57, 0, -8],
+    ['wfs','qd', 'S21 济青',  8, 0.90, 0.85, 0, -8],
+    ['qd','rz',  'G22 青兰',  6, 0.62, 0.55, 0, 0],
+    ['rz','ly',  'G22 青兰',  6, 0.58, 0.52, 0, 0],
+    ['ly','jn',  'G22 青兰',  6, 0.70, 0.64, 0, 0],
+    ['ly','zz',  'G35 济广',  6, 0.68, 0.60, 0, 0],
+    ['zz','hz',  'G35 济广',  4, 0.52, 0.48, 0, 0],
+    ['jn2','hz', '济菏高速',  4, 0.40, 0.38, 0, 0],
+    ['hz','zz2', 'G30 连霍',  6, 0.55, 0.68, 1, 0],
+    ['hz','lc',  'G35 济广',  4, 0.30, 0.28, 0, 0],
+    ['yt','pl',  'G18 荣乌',  4, 0.42, 0.40, 0, 0],
+    ['yt','wh',  'G18 荣乌',  4, 0.40, 0.38, 0, 0],
+    ['bz','dy',  'G18 荣乌',  6, 0.48, 0.45, 0, 0],
+    ['zb','bz',  'G25 长深',  6, 0.40, 0.38, 0, 0],
+    ['bz','de',  'G3 京台',   6, 0.32, 0.34, 0, 0],
+    ['rz','lyg', 'G15 沈海',  6, 0.50, 0.60, 1, 0],
+    ['wfs','rz', 'S16 滨海',  4, 0.45, 0.42, 0, 0],
+    ['qd','yt',  'G18 荣乌',  6, 0.62, 0.58, 0, 0],
+    ['yt','wfs', 'G18 荣乌',  6, 0.55, 0.50, 0, 0]
+  ];
+
+  // 地物参照（不承载流量编码，仅作定位参照）
+  const REF = [
+    ['山海关', 119.75, 40.01, 6, -6],
+    ['天津港', 117.78, 38.98, 8, 6]
+  ];
+  // 海域标注
+  const SEA = [
+    ['渤 海', 119.30, 38.55],
+    ['黄 海', 121.30, 35.70]
+  ];
+  // 景区标记
+  const SCENIC = [
+    ['泰山',      117.10, 36.26, 10, -4],
+    ['曲阜三孔',  116.99, 35.60, 8, -4],
+    ['崂山',      120.47, 36.15, 0, -11],
+    ['蓬莱·长岛', 120.76, 37.86, 0, 0],
+    ['台儿庄',    117.73, 34.56, 8, 6],
+    ['黄河入海口',118.90, 37.78, 0, -12]
+  ];
+
+  // 示意陆域边界：京津冀鲁连续陆域（西缘为晋/豫界，北缘为内蒙古/辽宁界，东、南为渤海/黄海海岸线）
+  const BORDER = [
+    [114.60,35.55],[114.90,36.10],[114.10,36.75],[114.05,37.25],[114.30,37.75],
+    [114.55,38.30],[115.15,38.90],[115.60,39.50],[116.10,40.00],[116.50,40.25],
+    [117.00,40.32],[117.50,40.28],[118.15,40.18],[118.95,40.10],[119.60,40.02],
+    [120.20,39.85],[120.10,39.60],[119.60,39.45],[119.10,39.35],[118.70,39.20],
+    [118.20,39.10],[117.90,39.25],[117.75,39.05],[117.70,38.80],[117.80,38.60],
+    [117.90,38.35],[118.10,38.05],[118.30,37.85],[118.90,38.05],[119.30,37.90],
+    [119.80,37.72],[120.15,37.80],[120.45,37.98],[120.85,38.02],[121.15,37.90],
+    [121.60,37.80],[121.90,37.78],[122.50,37.52],[122.70,37.02],[122.20,36.72],
+    [121.80,36.58],[121.20,36.00],[120.50,35.85],[120.00,35.72],[119.60,35.32],
+    [119.30,35.00],[118.90,34.90],[118.50,34.80],[118.20,34.50],[117.80,34.55],
+    [117.30,34.60],[116.90,34.75],[116.40,34.85],[115.90,34.90],[115.40,34.80],
+    [115.00,35.10],[114.60,35.55]
+  ];
+
+  /* ===================== 投影 ===================== */
+  const W = 900, H = 760, PADL = 34, PADR = 34, PADT = 24, PADB = 30;
+  const LON0 = 113.2, LON1 = 123.40, LAT1 = 40.45, LAT0 = 34.00;
+  const KLAT = Math.cos(37.2 * Math.PI / 180);
+  const geoW = (LON1 - LON0) * KLAT, geoH = LAT1 - LAT0;
+  const SC = Math.min((W - PADL - PADR) / geoW, (H - PADT - PADB) / geoH);
+  const OX = PADL + ((W - PADL - PADR) - geoW * SC) / 2;
+  const OY = PADT + ((H - PADT - PADB) - geoH * SC) / 2;
+  const px = lon => OX + (lon - LON0) * KLAT * SC;
+  const py = lat => OY + (LAT1 - lat) * SC;
+
+  /* ===================== 流量模型 ===================== */
+  const CAP = { 4: 11.6, 6: 17.4, 8: 23.2 };
+
+  function compute(day) {
+    // 系数 k 只由山东口径路段反推：使省域日合计等于 day.target。
+    // 出省段（苏/豫）计入山东口径 —— 其流量由省内出行生成；
+    // 京津冀通道段（e[8]==='C'）不计入，单独统计为"入鲁通道"。
+    const isSD = e => e[8] !== 'C';
+    const F = E.filter(isSD).reduce((s, e) => s + e[4] * day.out + e[5] * day.back, 0);
+    const k = day.target / F;
+    return E.map((e, i) => {
+      const fAB = e[4] * day.out * k;    // A → B 方向
+      const fBA = e[5] * day.back * k;   // B → A 方向
+      const tot = fAB + fBA;
+      const domFwd = fAB >= fBA;
+      const ra = reg(e[0]), rb = reg(e[1]);
+      return {
+        i, a: e[0], b: e[1], hw: e[2], lanes: e[3], isOut: !!e[6], off: e[7],
+        ra, rb, inSD: isSD(e),
+        // 跨越冀鲁界的北京—山东通道（京/津/冀 ↔ 鲁）
+        crossJJJ: (ra !== '山东' && rb === '山东' && ['北京','天津','河北'].includes(ra))
+               || (rb !== '山东' && ra === '山东' && ['北京','天津','河北'].includes(rb)),
+        fAB, fBA, tot, domFwd, dom: Math.max(fAB, fBA),
+        vc: tot / CAP[e[3]],
+        asym: Math.abs(fAB - fBA) / tot
+      };
+    });
+  }
+
+  const MODELS = {};
+  for (const d of DAYS) MODELS[d.id] = compute(d);
+
+  /* 拥堵等级 = 语义热度色阶（多色 sequential 的合法例外），必须配刻度图例。
+     4 档而非 5 档：实测 5 档热色在两个模式下都过不了可分性底线
+     （橙↔红 正常色觉 ΔE 10.8 / 暗色 7.1），去掉橙、留下紫反而全过。*/
+  const RAMP = ['--sev-1','--sev-2','--sev-3','--sev-4'];
+  const SEVNAME = ['畅通', '缓行', '拥堵', '极端拥堵'];
+  const EDGES = [0, 9, 12, 15, 100];   // 上界：万辆次/日
+  const binOf = v => { for (let i = 0; i < 4; i++) if (v < EDGES[i+1]) return i; return 3; };
+  const binRange = i => {
+    if (i === 0) return '< 9';
+    if (i === 3) return '≥ 15';
+    return EDGES[i] + '–' + EDGES[i+1];
+  };
+
+  /* ===================== DOM ===================== */
+  const $ = s => document.querySelector(s);
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const el = (t, attrs) => { const e = document.createElementNS(svgNS, t);
+    for (const k in attrs) e.setAttribute(k, attrs[k]); return e; };
+  const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+  let current = '10-01';
+
+  /* ---------- filter row ---------- */
+  const daybtns = $('#daybtns');
+  DAYS.forEach(d => {
+    const b = document.createElement('button');
+    b.className = 'daybtn'; b.type = 'button';
+    b.setAttribute('aria-pressed', 'false');
+    const s1 = document.createElement('b'); s1.textContent = d.d;
+    const s2 = document.createElement('span'); s2.textContent = d.name;
+    b.append(s1, s2);
+    b.addEventListener('click', () => { current = d.id; render(); });
+    b.dataset.id = d.id;
+    daybtns.appendChild(b);
+  });
+
+  /* ---------- legend ramp ---------- */
+  (() => {
+    const r = $('#ramp');
+    RAMP.forEach((v, i) => {
+      const d = document.createElement('div'); d.className = 'step';
+      const sw = document.createElement('i'); sw.style.background = `var(${v})`;
+      const nm = document.createElement('span'); nm.className = 'nm';
+      nm.textContent = SEVNAME[i];
+      const lb = document.createElement('span'); lb.className = 'lab';
+      lb.textContent = binRange(i);
+      d.append(sw, nm, lb); r.appendChild(d);
+    });
+    const k = $('#widthkey');
+    [[4,'4 车道'],[6,'6 车道'],[8,'8 车道']].forEach(([n, t]) => {
+      const s = document.createElement('span');
+      s.style.display = 'inline-flex'; s.style.alignItems = 'center'; s.style.gap = '5px';
+      const sv = document.createElementNS(svgNS, 'svg');
+      sv.setAttribute('width','26'); sv.setAttribute('height','12');
+      const ln = el('line', {x1:1, y1:6, x2:25, y2:6,
+        stroke:'currentColor', 'stroke-width': n===4?3:n===6?4.5:6, 'stroke-linecap':'round'});
+      sv.appendChild(ln);
+      const tx = document.createElement('span'); tx.textContent = t;
+      s.append(sv, tx); k.appendChild(s);
+    });
+  })();
+
+  /* ---------- map ---------- */
+  const map = $('#map');
+  const tip = $('#tip');
+  const segRefs = new Map();
+  // 箭头只标当日方向性最强的 10 条路段（排名依据 fwd/bwd 比值，与日期无关，
+  // 因此同批路段在返程日会整齐反向）。asym < 0.10 视为双向均衡，不标。
+  const ARROW_MIN = 0.10, ARROW_N = 10;
+  const arrowSet = new Set();
+  const hasArrow = m => arrowSet.has(m.i);
+
+  function drawMap() {
+    arrowSet.clear();
+    const ms = MODELS[current];
+    for (const m of [...ms].sort((a, b) => b.asym - a.asym).slice(0, ARROW_N))
+      if (m.asym >= ARROW_MIN) arrowSet.add(m.i);
+    map.textContent = '';
+    map.appendChild(el('path', {
+      class: 'land',
+      d: BORDER.map((p, i) => (i ? 'L' : 'M') + px(p[0]).toFixed(1) + ' ' + py(p[1]).toFixed(1)).join(' ') + 'Z'
+    }));
+
+    // 路段：casing(底) + 色流 + 箭头 + 命中区
+    for (const m of MODELS[current]) {
+      const A = N[m.a], B = N[m.b];
+      let x1 = px(A[1]), y1 = py(A[2]), x2 = px(B[1]), y2 = py(B[2]);
+      if (m.off) {
+        const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1;
+        const nx = -dy / L * m.off, ny = dx / L * m.off;
+        x1 += nx; y1 += ny; x2 += nx; y2 += ny;
+      }
+      const w = m.lanes === 4 ? 3 : m.lanes === 6 ? 4.5 : 6;
+      const g = el('g', {});
+      g.appendChild(el('line', {class:'seg-casing', x1, y1, x2, y2, 'stroke-width': w + 3.5}));
+      const stroke = el('line', {class:'seg', x1, y1, x2, y2, 'stroke-width': w});
+      g.appendChild(stroke);
+
+      // 主导流向箭头
+      let arrow = null;
+      if (hasArrow(m)) {
+        const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+        let a = Math.atan2(y2 - y1, x2 - x1);
+        if (!m.domFwd) a += Math.PI;
+        const L = 8, Wd = 5.5;
+        const dx = Math.cos(a), dy = Math.sin(a);
+        arrow = el('path', { class:'arrow',
+          d: `M${(mx+dx*L).toFixed(1)} ${(my+dy*L).toFixed(1)} ` +
+             `L${(mx-dx*L*0.35-dy*Wd).toFixed(1)} ${(my-dy*L*0.35+dx*Wd).toFixed(1)} ` +
+             `L${(mx-dx*L*0.35+dy*Wd).toFixed(1)} ${(my-dy*L*0.35-dx*Wd).toFixed(1)}Z` });
+        g.appendChild(arrow);
+      }
+
+      const hit = el('line', { class:'hit', x1, y1, x2, y2, tabindex:'0', role:'img' });
+      const label = `${A[0]}—${B[0]} ${m.hw}，${m.lanes} 车道，${m.ra === m.rb ? m.ra : m.ra + '至' + m.rb}，`
+        + `${m.tot.toFixed(1)} 万辆次/日，主导方向 ${m.domFwd ? A[0]+'→'+B[0] : B[0]+'→'+A[0]} ${m.dom.toFixed(1)} 万辆次`;
+      hit.setAttribute('aria-label', label);
+      g.appendChild(hit);
+      map.appendChild(g);
+      segRefs.set(m.i, { stroke, arrow, m, A, B });
+
+      const show = ev => showTip(m, A, B, hit);
+      hit.addEventListener('pointerenter', show);
+      hit.addEventListener('pointermove', show);
+      hit.addEventListener('pointerleave', hideTip);
+      hit.addEventListener('focus', () => { show(); positionTip(hit); });
+      hit.addEventListener('blur', hideTip);
+    }
+
+    // 海域
+    for (const [nm, lon, lat] of SEA) {
+      const t = el('text', { class:'sealab', x: px(lon), y: py(lat), 'text-anchor':'middle' });
+      t.textContent = nm; map.appendChild(t);
+    }
+
+    // 节点
+    for (const k in N) {
+      const [nm, lon, lat, kind, dx, dy] = N[k];
+      const x = px(lon), y = py(lat);
+      if (kind === 'out') {
+        map.appendChild(el('rect', { class:'node-out', x: x-4.5, y: y-4.5, width:9, height:9, rx:1.5 }));
+      } else if (kind === 'origin') {
+        map.appendChild(el('rect', { class:'node-origin', x: x-5.5, y: y-5.5,
+          width:11, height:11, rx:2 }));
+        map.appendChild(el('rect', { class:'node-origin-ring', x: x-8, y: y-8,
+          width:16, height:16, rx:3 }));
+      } else {
+        map.appendChild(el('circle', { class:'node', cx:x, cy:y, r:3.2 }));
+      }
+      // dx 为负 → 文字向左排（end 锚点）；0 → 居中；正 → 向右
+      const anchor = dx < 0 ? 'end' : dx === 0 ? 'middle' : 'start';
+      const cls = 'nlabel' + (kind === 'out' ? ' xs' : '') + (kind === 'origin' ? ' strong' : '');
+      const t = el('text', { class: cls, x: x + dx, y: y + dy, 'text-anchor': anchor });
+      t.textContent = nm; map.appendChild(t);
+    }
+
+    // 地物参照
+    for (const [nm, lon, lat, dx, dy] of REF) {
+      const x = px(lon), y = py(lat);
+      map.appendChild(el('circle', { class:'refdot', cx:x, cy:y, r:2.6 }));
+      const t = el('text', { class:'slabel', x: x + dx, y: y + dy,
+        'text-anchor': dx < 0 ? 'end' : 'start' });
+      t.textContent = nm; map.appendChild(t);
+    }
+
+    // 景区参照
+    for (const [nm, lon, lat, dx, dy] of SCENIC) {
+      const x = px(lon), y = py(lat);
+      map.appendChild(el('path', { class:'scenic',
+        d: `M${x} ${y-4} L${x+4} ${y} L${x} ${y+4} L${x-4} ${y}Z` }));
+      const t = el('text', { class:'slabel', x: x + (dx || 7), y: y + (dy || -6),
+        'text-anchor': (dx || 7) < 0 ? 'end' : 'start' });
+      t.textContent = nm; map.appendChild(t);
+    }
+
+    // 高速编号（稀疏直标）
+    const HWL = [
+      ['G2 京沪', 116.50, 38.75, 9, 4],
+      ['G3 京台', 117.05, 37.95, 10, 4],
+      ['G25 长深', 117.62, 38.62, 9, 4],
+      ['G4 京港澳', 115.00, 38.35, -8, -6],
+      ['G2 京沪', 116.62, 37.05, -34, -6],
+      ['G3 京台', 117.20, 35.20, 8, 4],
+      ['G20 青银', 118.95, 36.35, 8, 4],
+      ['G22 青兰', 119.90, 35.62, 6, 4],
+      ['G35 济广', 117.70, 34.92, 8, 4]
+    ];
+    for (const [nm, lon, lat, dx, dy] of HWL) {
+      const t = el('text', { class:'hwlabel', x: px(lon)+dx, y: py(lat)+dy,
+        'text-anchor': dx < 0 ? 'end' : 'start' });
+      t.textContent = nm; map.appendChild(t);
+    }
+
+    // 区域注记
+    const reglab = [['河 北', 115.75, 38.30], ['山 东', 120.55, 37.05]];
+    for (const [nm, lon, lat] of reglab) {
+      const t = el('text', { class:'reglab', x: px(lon), y: py(lat), 'text-anchor':'middle' });
+      t.textContent = nm; map.appendChild(t);
+    }
+  }
+
+  function showTip(m, A, B, hit) {
+    const i = binOf(m.tot);
+    tip.textContent = '';
+    const n1 = document.createElement('div'); n1.className = 't-name';
+    n1.textContent = `${A[0]} — ${B[0]}`; tip.appendChild(n1);
+
+    const big = document.createElement('div'); big.className = 't-big';
+    big.textContent = m.tot.toFixed(1);
+    const su = document.createElement('small'); su.textContent = ' 万辆次/日（双向合计）';
+    big.appendChild(su); tip.appendChild(big);
+
+    const r1 = document.createElement('div'); r1.className = 't-row';
+    r1.appendChild(Object.assign(document.createElement('span'), {class:'t-key'}));
+    const b1 = document.createElement('b'); b1.textContent = m.fAB.toFixed(1);
+    r1.appendChild(b1);
+    r1.appendChild(document.createTextNode(` 万辆次 ${A[0]}→${B[0]}`));
+    tip.appendChild(r1);
+
+    const r2 = document.createElement('div'); r2.className = 't-row';
+    r2.appendChild(Object.assign(document.createElement('span'), {class:'t-key'}));
+    const b2 = document.createElement('b'); b2.textContent = m.fBA.toFixed(1);
+    r2.appendChild(b2);
+    r2.appendChild(document.createTextNode(` 万辆次 ${B[0]}→${A[0]}`));
+    tip.appendChild(r2);
+
+    const d = document.createElement('div'); d.className = 't-dom';
+    d.textContent = `${m.hw} · ${m.lanes} 车道 · ${m.ra === m.rb ? m.ra : m.ra + '→' + m.rb}`
+      + ` · 饱和度 ${m.vc.toFixed(2)}`
+      + (hasArrow(m) ? ` · 主导 ${m.domFwd ? A[0]+'→'+B[0] : B[0]+'→'+A[0]}` : ' · 双向均衡');
+    tip.appendChild(d);
+
+    tip.querySelectorAll('.t-key')[1].classList.add('alt');
+    tip.style.opacity = '1';
+    positionTip(hit);
+  }
+  function positionTip(hit) {
+    const wrap = hit.closest('.mapwrap').getBoundingClientRect();
+    const r = hit.getBoundingClientRect();
+    const tw = tip.offsetWidth, th = tip.offsetHeight;
+    let x = r.left + r.width / 2 - wrap.left;
+    let y = r.top + r.height / 2 - wrap.top - 10;
+    x = Math.max(tw / 2 + 4, Math.min(wrap.width - tw / 2 - 4, x));
+    if (y - th < 2) y = r.bottom - wrap.top + th + 12;
+    tip.style.left = x + 'px';
+    tip.style.top = y + 'px';
+  }
+  function hideTip() { tip.style.opacity = '0'; }
+
+  /* ---------- 分时曲线 ---------- */
+  const hour = $('#hour');
+  const HW = 900, HH = 230, HPL = 46, HPR = 30, HPT = 24, HPB = 34;
+  const hourlySeries = d => { const p = HOUR[d.type], t = d.target; return p.map(v => v * t); };
+
+  function drawHour() {
+    hour.textContent = '';
+    const all = DAYS.map(hourlySeries);
+    let mx = 0; for (const s of all) for (const v of s) if (v > mx) mx = v;
+    mx = Math.ceil(mx / 5) * 5;
+    const X = h => HPL + (h / 23) * (HW - HPL - HPR);
+    const Y = v => HPT + (1 - v / mx) * (HH - HPT - HPB);
+
+    for (let i = 0; i <= 4; i++) {
+      const v = mx * i / 4, y = Y(v);
+      hour.appendChild(el('line', { class:'h-grid', x1:HPL, y1:y, x2:HW-HPR, y2:y }));
+      const t = el('text', { class:'h-tick', x: HPL - 8, y: y + 3.5, 'text-anchor':'end' });
+      t.textContent = v.toFixed(0); hour.appendChild(t);
+    }
+    hour.appendChild(el('line', { class:'h-axis', x1:HPL, y1:Y(0), x2:HW-HPR, y2:Y(0) }));
+    for (let h = 0; h <= 23; h += 3) {
+      const t = el('text', { class:'h-tick', x: X(h), y: HH - HPB + 16, 'text-anchor':'middle' });
+      t.textContent = String(h).padStart(2,'0'); hour.appendChild(t);
+    }
+    const unit = el('text', { class:'h-tick', x: HPL - 8, y: HPT - 8, 'text-anchor':'end' });
+    unit.textContent = '万辆次/时'; hour.appendChild(unit);
+
+    const line = s => s.map((v,i) => (i?'L':'M') + X(i).toFixed(1) + ' ' + Y(v).toFixed(1)).join(' ');
+    // 其余各日作为淡线背景（非独立 series）
+    DAYS.forEach(d => { if (d.id !== current)
+      hour.appendChild(el('path', { class:'h-ctx', d: line(hourlySeries(d)) })); });
+
+    const s = hourlySeries(DAYS.find(d => d.id === current));
+    hour.appendChild(el('path', { class:'h-area',
+      d: line(s) + ` L${X(23).toFixed(1)} ${Y(0)} L${X(0).toFixed(1)} ${Y(0)} Z` }));
+    hour.appendChild(el('path', { class:'h-line', d: line(s) }));
+
+    let pi = 0; s.forEach((v,i) => { if (v > s[pi]) pi = i; });
+    hour.appendChild(el('circle', { class:'h-dot', cx:X(pi), cy:Y(s[pi]), r:4.5 }));
+    const pl = el('text', { class:'h-plab', x: X(pi) + (pi > 16 ? -10 : 10), y: Y(s[pi]) - 8,
+      'text-anchor': pi > 16 ? 'end' : 'start' });
+    pl.textContent = s[pi].toFixed(1); hour.appendChild(pl);
+    const ps = el('text', { class:'h-psub', x: X(pi) + (pi > 16 ? -10 : 10), y: Y(s[pi]) + 6,
+      'text-anchor': pi > 16 ? 'end' : 'start' });
+    ps.textContent = String(pi).padStart(2,'0') + ':00 峰值'; hour.appendChild(ps);
+
+    // crosshair
+    const cross = el('line', { class:'h-cross', y1:HPT, y2:Y(0), x1:0, x2:0, opacity:0 });
+    const hov = el('rect', { class:'h-hover', y:HPT, height:(HH-HPT-HPB), width:(HW-HPL-HPR)/23, opacity:0, x:0 });
+    hour.appendChild(hov); hour.appendChild(cross);
+    const hit = el('rect', { x:HPL, y:HPT, width:(HW-HPL-HPR), height:(HH-HPT-HPB), fill:'transparent', tabindex:'0' });
+    hit.setAttribute('role','img');
+    hit.setAttribute('aria-label', '全省路网分时流量曲线，数值见表格视图');
+    hour.appendChild(hit);
+
+    const move = ev => {
+      const r = hour.getBoundingClientRect();
+      const pxv = (ev.clientX - r.left) / r.width * HW;
+      const h = Math.max(0, Math.min(23, Math.round((pxv - HPL) / (HW - HPL - HPR) * 23)));
+      const x = X(h);
+      hov.setAttribute('x', X(h) - (HW-HPL-HPR)/46); hov.setAttribute('opacity', 1);
+      cross.setAttribute('x1', x); cross.setAttribute('x2', x); cross.setAttribute('opacity', 1);
+      const ctx = DAYS.find(d => d.id === current);
+      const cmp = DAYS.filter(d => d.id !== current)
+        .map(d => ({ d, v: hourlySeries(d)[h] }))
+        .sort((a,b) => b.v - a.v)[0];
+      tip.textContent = '';
+      const n1 = document.createElement('div'); n1.className = 't-name';
+      n1.textContent = `${ctx.d} ${String(h).padStart(2,'0')}:00 — ${ctx.name}`;
+      tip.appendChild(n1);
+      const big = document.createElement('div'); big.className='t-big';
+      big.textContent = s[h].toFixed(1);
+      const su = document.createElement('small'); su.textContent = ' 万辆次/时';
+      big.appendChild(su); tip.appendChild(big);
+      const r2 = document.createElement('div'); r2.className='t-dom';
+      r2.textContent = `当日其余各时中该时刻最高：${cmp.d.d} ${cmp.v.toFixed(1)} 万辆次/时`;
+      tip.appendChild(r2);
+      const wrap = hour.closest('.card').getBoundingClientRect();
+      tip.style.opacity = '1';
+      let xx = r.left + r.width * (x / HW) - wrap.left;
+      xx = Math.max(tip.offsetWidth/2 + 4, Math.min(wrap.width - tip.offsetWidth/2 - 4, xx));
+      tip.style.left = xx + 'px';
+      tip.style.top = (r.top - wrap.top - 6) + 'px';
+      tip.style.transform = 'translate(-50%, -100%)';
+    };
+    const leave = () => { tip.style.opacity='0'; hov.setAttribute('opacity',0); cross.setAttribute('opacity',0); };
+    hit.addEventListener('pointermove', move);
+    hit.addEventListener('pointerleave', leave);
+    let ki = 0;
+    hit.addEventListener('keydown', ev => {
+      if (ev.key !== 'ArrowLeft' && ev.key !== 'ArrowRight') return;
+      ev.preventDefault();
+      ki = Math.max(0, Math.min(23, ki + (ev.key === 'ArrowRight' ? 1 : -1)));
+      const r = hour.getBoundingClientRect(), x = X(ki);
+      const fake = { clientX: r.left + r.width * (x / HW) };
+      move(fake);
+    });
+  }
+
+  /* ---------- stat tiles ---------- */
+  function renderTiles(day, ms) {
+    const t = $('#tiles'); t.textContent = '';
+    let peak = ms[0];
+    for (const m of ms) if (m.vc > peak.vc) peak = m;
+    const gate = ms.filter(m => m.crossJJJ);
+    const gateFlow = gate.reduce((s,m) => s + m.tot, 0);
+    const gateTop = [...gate].sort((a,b) => b.tot - a.tot)[0];
+    const s = hourlySeries(day);
+    let pi = 0; s.forEach((v,i) => { if (v > s[pi]) pi = i; });
+
+    const items = [
+      ['山东省域日流量', day.target.toFixed(0), '万辆次',
+       `${day.name} · 分时峰值 ${s[pi].toFixed(1)} 万辆次/时（${String(pi).padStart(2,'0')}:00）`],
+      ['最拥堵路段（按饱和度）', peak.tot.toFixed(1), '万辆次/日',
+       `${N[peak.a][0]}—${N[peak.b][0]} ${peak.hw} · ${peak.lanes} 车道 · 饱和度 ${peak.vc.toFixed(2)}`],
+      ['京津冀入鲁流量', gateFlow.toFixed(0), '万辆次/日',
+       `${gate.length} 条跨省通道 · 最重 ${gateTop.hw} ${N[gateTop.a][0]}—${N[gateTop.b][0]} ${gateTop.tot.toFixed(1)}`],
+      ['峰值小时', String(pi).padStart(2,'0') + ':00', '',
+       day.type.startsWith('back') ? '返程早高峰，向西南出省' : '上午出行高峰，向景区/出省']
+    ];
+    for (const [k, v, u, n] of items) {
+      const d = document.createElement('div'); d.className = 'tile';
+      const a = document.createElement('div'); a.className = 'k'; a.textContent = k;
+      const b = document.createElement('div'); b.className = 'v'; b.textContent = v;
+      if (u) { const s2 = document.createElement('small'); s2.textContent = ' ' + u; b.appendChild(s2); }
+      const c = document.createElement('div'); c.className = 'n'; c.textContent = n;
+      d.append(a, b, c); t.appendChild(d);
+    }
+  }
+
+  /* ---------- table twin ---------- */
+  function renderTable(day, ms) {
+    const tb = $('#tbody'); tb.textContent = '';
+    [...ms].sort((a,b) => b.tot - a.tot).forEach((m, i) => {
+      const tr = document.createElement('tr');
+      const cells = [
+        [String(i+1), 'l'], [N[m.a][0] + '—' + N[m.b][0], 'l name'], [m.hw, 'l'],
+        [m.ra === m.rb ? m.ra : m.ra + ' · ' + m.rb, 'l'],
+        [String(m.lanes), ''], [`${m.tot.toFixed(1)}  ${SEVNAME[binOf(m.tot)]}`, ''],
+        [`${m.dom.toFixed(1)}  ${m.domFwd ? N[m.a][0]+'→'+N[m.b][0] : N[m.b][0]+'→'+N[m.a][0]}`, ''],
+        [m.vc.toFixed(2), '']
+      ];
+      for (const [txt, cls] of cells) {
+        const td = document.createElement('td');
+        if (cls) td.className = cls;
+        td.textContent = txt; tr.appendChild(td);
+      }
+      const sw = document.createElement('span'); sw.className = 'swatch';
+      sw.style.background = `var(${RAMP[binOf(m.tot)]})`;
+      tr.children[5].prepend(sw);
+      const vc = tr.children[7];
+      if (m.vc >= 1) vc.className = 'vc-hi'; else if (m.vc >= 0.9) vc.className = 'vc-mid';
+      tb.appendChild(tr);
+    });
+    $('#tablesub').textContent =
+      `${day.d} ${day.name} · 全部 ${ms.length} 条路段（含京津冀走廊段），按双向合计流量降序。`
+      + `色块与地图拥堵等级一一对应，等级文字可独立阅读，不依赖颜色。`;
+  }
+
+  /* ---------- render ---------- */
+  function render() {
+    const day = DAYS.find(d => d.id === current);
+    const ms = MODELS[current];
+
+    for (const b of daybtns.children)
+      b.setAttribute('aria-pressed', b.dataset.id === current ? 'true' : 'false');
+
+    const top = [...ms].sort((a,b) => b.tot - a.tot)[0];
+    const gate = ms.filter(m => m.crossJJJ).reduce((s,m) => s + m.tot, 0);
+    $('#mapsub').textContent =
+      `${day.d} ${day.wd} · ${day.name} · 山东省域 ${day.target} 万辆次/日，`
+      + `其中经京津冀入鲁 ${gate.toFixed(0)} 万辆次/日；`
+      + `流量最大路段 ${N[top.a][0]}—${N[top.b][0]} ${top.hw} ${top.tot.toFixed(1)} 万辆次。`
+      + `陆域与走向为示意，悬停或键盘聚焦任一路段可读数值。`;
+    $('#hoursub').textContent =
+      `${day.d} ${day.name} 的分时形态（淡线为其余各日，仅作对照，非独立数据系列）。`;
+
+    drawMap();
+    for (const [k, r] of segRefs) {
+      const bin = RAMP[binOf(r.m.tot)];
+      r.stroke.style.stroke = `var(${bin})`;
+      if (r.arrow) r.arrow.style.fill = `var(${bin})`;
+    }
+    drawHour();
+    renderTiles(day, ms);
+    renderTable(day, ms);
+
+    $('#live').textContent =
+      `已切换至 10 月 ${day.d.slice(3)} 日 ${day.name}，山东省域 ${day.target} 万辆次，`
+      + `流量最大路段 ${N[top.a][0]}—${N[top.b][0]} ${top.hw}，${top.tot.toFixed(1)} 万辆次。`;
+  }
+
+  /* ---------- theme ---------- */
+  $('#themebtn').addEventListener('click', () => {
+    const dark = document.documentElement.getAttribute('data-theme') === 'dark'
+      || (!document.documentElement.hasAttribute('data-theme')
+          && matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.setAttribute('data-theme', dark ? 'light' : 'dark');
+    $('#themebtn').textContent = dark ? '深色' : '浅色';
+    for (const [, r] of segRefs) {
+      const bin = RAMP[binOf(r.m.tot)];
+      r.stroke.style.stroke = `var(${bin})`;
+      if (r.arrow) r.arrow.style.fill = `var(${bin})`;
+    }
+  });
+
+  /* ---------- table toggle ---------- */
+  $('#tablebtn').addEventListener('click', () => {
+    const v = $('#tableview'), on = v.hasAttribute('hidden');
+    v.toggleAttribute('hidden', !on);
+    $('#tablebtn').setAttribute('aria-pressed', String(on));
+  });
+
+  render();
+  window.addEventListener('resize', () => { positionTipAll(); });
+  function positionTipAll() { if (tip.style.opacity === '1') { tip.style.opacity = '0'; } }
+})();
+</script>
+</body>
+</html>
