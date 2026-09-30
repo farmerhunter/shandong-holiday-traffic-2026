@@ -103,6 +103,20 @@
   .daybtn[aria-pressed="true"] span { color: rgba(255,255,255,0.82); }
   .daybtn:focus-visible { outline: 2px solid var(--series-1); outline-offset: 2px; }
   .spacer { flex: 1 1 auto; }
+  .combo {
+    appearance: none; cursor: pointer; font: inherit; font-size: 12.5px;
+    background: transparent; color: var(--text-secondary);
+    border: 1px solid var(--border); border-radius: 7px;
+    padding: 6px 26px 6px 11px; min-height: 30px; max-width: 220px;
+    background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+                      linear-gradient(135deg, currentColor 50%, transparent 50%);
+    background-position: calc(100% - 15px) 52%, calc(100% - 10px) 52%;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+  }
+  .combo:hover { background-color: var(--surface-2); }
+  .combo:focus-visible { outline: 2px solid var(--series-1); outline-offset: 2px; }
+  .combo.on { color: var(--text-primary); border-color: var(--text-muted); }
   .ghost {
     appearance: none; cursor: pointer; font: inherit; font-size: 12.5px;
     background: transparent; color: var(--text-secondary);
@@ -149,6 +163,8 @@
   }
   .ramp-title { font-size: 11.5px; color: var(--text-muted); }
   .widthkey { display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--text-muted); }
+  /* .widthkey 的 display:flex 会盖过 UA 的 [hidden]{display:none}，需显式声明 */
+  .widthkey[hidden] { display: none; }
   .widthkey svg { display: block; }
 
   /* ---------- map ---------- */
@@ -198,6 +214,9 @@
   /* 方向键用中性墨色而非严重度色：色相只承载拥堵等级，不暗示两个方向等级不同 */
   .tip .t-key { display: inline-block; width: 14px; height: 2px; background: currentColor; border-radius: 1px; flex: none; position: relative; top: -3px; }
   .tip .t-key.alt { opacity: 0.42; }
+  .tip .t-row.t-on b { color: var(--text-primary); }
+  .tip .t-row.t-off { color: var(--text-muted); }
+  .tip .t-row.t-off b { color: var(--text-secondary); font-weight: 500; }
   .tip .t-row b { color: var(--text-primary); font-weight: 600; font-variant-numeric: tabular-nums; }
   .tip .t-dom { margin-top: 5px; padding-top: 5px; border-top: 1px solid var(--grid); font-size: 11px; color: var(--text-secondary); }
 
@@ -219,6 +238,14 @@
 
   /* ---------- table view ---------- */
   #tableview[hidden] { display: none; }
+  th[data-sort] { cursor: pointer; user-select: none; }
+  th[data-sort]:hover { color: var(--text-primary); }
+  th[data-sort]::after { content: ''; display: inline-block; width: 8px; }
+  th[data-sort].asc::after  { content: '↑'; color: var(--text-muted); }
+  th[data-sort].desc::after { content: '↓'; color: var(--text-muted); }
+  td.dir-on { background: var(--surface-2); font-weight: 600; }
+  td.dir-off { color: var(--text-muted); }
+  .dirpair { font-variant-numeric: tabular-nums; white-space: nowrap; }
   .tablescroll { max-height: 460px; overflow: auto; border: 1px solid var(--border); border-radius: 8px; }
   table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
   th, td { padding: 7px 10px; text-align: right; white-space: nowrap; }
@@ -241,13 +268,15 @@
 <div class="wrap">
 
   <h1>北京—山东高速通道假期流量分布预测 · 2026 国庆假期</h1>
-  <p class="sub">按天切换的京津冀鲁路网断面流量分布，覆盖<b>京沪（G2）、京台（G3）、长深（G25）、京港澳（G4）/青银（G20）</b>四条北京进入山东的主通道。<strong>线宽 = 车道数；颜色 = 拥堵等级</strong>，按国内路况图的语义热度色标，绿（畅通）→黄（缓行）→红（拥堵）→紫（极端拥堵），分档阈值见图例与表格视图；路段上的箭头指向当日主导流向。</p>
+  <p class="sub">按天切换的京津冀鲁路网断面流量分布，覆盖<b>京沪（G2）、京台（G3）、长深（G25）、京港澳（G4）/青银（G20）</b>四条北京进入山东的主通道。<strong>线宽 = 车道数；颜色 = 拥堵等级</strong>，按国内路况图的语义热度色标，绿（畅通）→黄（缓行）→红（拥堵）→紫（极端拥堵），分档阈值见图例与表格视图；路段上的箭头指向当日主导流向。用<b>「定向」</b>选一个目的地，可把颜色切换为该路段<b>朝该目的地那一向的单向流量</b>，两个方向的数值始终在提示框与表格里分列给出。</p>
   <p class="caveat">本图为<b>结构化推演结果，不是官方发布数据</b>：陆域与路网走向为示意，流量由路网等级、目的地权重、逐日出行/返程比例与分时曲线推算得到。用于研判形态与相对关系，不能替代各地高速公路运营单位与公安交管部门的实测断面流量。</p>
 
   <!-- one filter row, above everything it scopes -->
-  <div class="filters" role="group" aria-label="预测日筛选">
+  <div class="filters" role="group" aria-label="预测日与目的地筛选">
     <span class="flabel">预测日</span>
     <div id="daybtns" style="display:flex; gap:6px; flex-wrap:wrap;"></div>
+    <span class="flabel" style="margin-left:6px;">定向</span>
+    <select id="destsel" class="combo" aria-label="选择目的地，着色为朝该方向的单向流量"></select>
     <span class="spacer"></span>
     <button class="ghost" id="tablebtn" aria-pressed="false" aria-controls="tableview">表格视图</button>
     <button class="ghost" id="themebtn">深色</button>
@@ -266,13 +295,16 @@
     </div>
     <div class="legend">
       <div>
-        <div class="ramp-title">拥堵等级 · 双向合计日流量（万辆次/日）</div>
+        <div class="ramp-title" id="ramptitle">拥堵等级 · 双向合计日流量（万辆次/日）</div>
         <div class="ramp" id="ramp"></div>
       </div>
       <div class="widthkey" id="widthkey"></div>
-      <div class="widthkey">
+      <div class="widthkey" id="arrowkey">
         <svg width="14" height="10" aria-hidden="true"><path d="M4 5 L11 5" stroke="currentColor" stroke-width="1.4" fill="none" marker-end="url(#ar)"/><defs><marker id="ar" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto"><path d="M0 0 L5 2.5 L0 5 z" fill="currentColor"/></marker></defs></svg>
-        箭头 = 当日方向性最强的 10 条路段及其主导流向
+        <span id="arrowkeytxt">箭头 = 该路段当日的主导流向（asym ≥ 0.12，逐路段标注）</span>
+      </div>
+      <div class="widthkey" id="destkey" hidden>
+        <span id="destkeytxt"></span>
       </div>
       <div class="widthkey">
         <svg width="14" height="14" aria-hidden="true"><rect x="2" y="2" width="10" height="10" rx="2" fill="currentColor"/></svg>
@@ -300,7 +332,10 @@
       <table>
         <thead><tr>
           <th class="l">#</th><th class="l">路段</th><th class="l">高速</th><th class="l">两端属地</th>
-          <th>车道</th><th>双向合计</th><th>主导方向流量</th><th>饱和度</th>
+          <th>车道</th><th data-sort="tot">双向合计</th>
+          <th class="l" data-sort="fAB" id="thAB"></th>
+          <th class="l" data-sort="fBA" id="thBA"></th>
+          <th data-sort="vc" id="thvc">饱和度</th>
         </tr></thead>
         <tbody id="tbody"></tbody>
       </table>
@@ -310,6 +345,7 @@
   <footer>
     口径：流量为小客车为主的断面流量估算值，双向合计。标定系数由<b>山东省内路段</b>反推（使省域日合计等于折线所示总量），京津冀走廊段按同一系数折算，因此扩展路网后山东口径的数字不变。
     饱和度 = 日流量 ÷ 该路段按车道数估算的通行能力（4 车道 11.6、6 车道 17.4、8 车道 23.2 万辆次/日），仅为量级参照，非 HCM 意义上的通行能力。
+    <b>定向模式</b>：选定目的地后，颜色与「朝该目的地」那一向的单向流量对照，分档阈值同步切换（合计 9/12/15 → 单向 6/8/10，因单向约为合计的一半）。方向判定：端点即目的地时直接定向，否则沿该路段行进是否让到目的地的球面距离递减；两端距离相差 2% 以内视为方向不明确，回落到该路段主导流向。定向饱和度按车道对半分配估算（单向通行能力 = 双向估算值 ÷ 2），该假设使定向饱和度约为双向值的两倍，仅作方向间比较之用。
     京沪/京台在廊坊—天津—沧州段为并线路廊，图中以三条平行线示意，不代表各线车道数。
     假期免费通行按 10 月 1 日 00:00 至 10 月 7 日 24:00 假设，实际以国务院办公厅放假安排及主管部门通知为准。
   </footer>
@@ -523,13 +559,42 @@
      （橙↔红 正常色觉 ΔE 10.8 / 暗色 7.1），去掉橙、留下紫反而全过。*/
   const RAMP = ['--sev-1','--sev-2','--sev-3','--sev-4'];
   const SEVNAME = ['畅通', '缓行', '拥堵', '极端拥堵'];
-  const EDGES = [0, 9, 12, 15, 100];   // 上界：万辆次/日
-  const binOf = v => { for (let i = 0; i < 4; i++) if (v < EDGES[i+1]) return i; return 3; };
+  const EDGES = [0, 9, 12, 15, 100];    // 双向合计分档：万辆次/日
+  const EDGES_DIR = [0, 6, 8, 10, 100]; // 定向分档：单向流量约为合计的一半，阈值同步减半
+  let TH = EDGES;                        // 当前生效的分档阈值
+  let dest = null;                       // 目的地节点 key；null = 双向合计
+  const binOf = v => { for (let i = 0; i < 4; i++) if (v < TH[i+1]) return i; return 3; };
   const binRange = i => {
-    if (i === 0) return '< 9';
-    if (i === 3) return '≥ 15';
-    return EDGES[i] + '–' + EDGES[i+1];
+    if (i === 0) return '< ' + TH[1];
+    if (i === 3) return '≥ ' + TH[3];
+    return TH[i] + '–' + TH[i+1];
   };
+
+  /* ---- 目的地定向 ----
+     给定目的地，定向到「朝目的地」那一向的流量。端点即目的地时直接定向；
+     否则看沿该路段行进是否让到目的地的球面距离递减。两端到目的地距离几乎相等
+     （相差 2% 以内）则方向不明确，回落到该路段的主导流向并在提示中标注。 */
+  const R_KM = 6371, rad = x => x * Math.PI / 180;
+  function gcKm(p, q) {
+    const dLa = rad(q[2] - p[2]), dLo = rad(q[1] - p[1]);
+    const a = Math.sin(dLa/2)**2 + Math.cos(rad(p[2]))*Math.cos(rad(q[2]))*Math.sin(dLo/2)**2;
+    return 2 * R_KM * Math.asin(Math.sqrt(a));
+  }
+  function dirOf(m) {
+    if (!dest) return null;
+    if (m.a === dest) return { f: m.fBA, from: m.b, to: m.a, amb: false };
+    if (m.b === dest) return { f: m.fAB, from: m.a, to: m.b, amb: false };
+    const da = gcKm(N[m.a], N[dest]), db = gcKm(N[m.b], N[dest]);
+    if (Math.abs(da - db) <= 0.02 * Math.max(da, db))
+      return { f: m.dom, from: m.domFwd ? m.a : m.b, to: m.domFwd ? m.b : m.a, amb: true };
+    return da < db ? { f: m.fBA, from: m.b, to: m.a, amb: false }
+                   : { f: m.fAB, from: m.a, to: m.b, amb: false };
+  }
+  // 供着色与排序的量：定向模式取朝目的地那一向，双向模式取合计
+  const shown = m => { const d = dirOf(m); return d ? d.f : m.tot; };
+  // 单向通行能力：按车道对半分配（CAP 为双向估算值）
+  const CAP1 = { 4: 5.8, 6: 8.7, 8: 11.6 };
+  const vcShown = m => { const d = dirOf(m); return d ? d.f / CAP1[m.lanes] : m.vc; };
 
   /* ===================== DOM ===================== */
   const $ = s => document.querySelector(s);
@@ -554,7 +619,42 @@
     daybtns.appendChild(b);
   });
 
+  /* ---------- 目的地定向 ---------- */
+  const destsel = $('#destsel');
+  {
+    const o0 = document.createElement('option');
+    o0.value = ''; o0.textContent = '双向合计（不定向）';
+    destsel.appendChild(o0);
+    // 通道终点与主要目的地优先，其余按省分组
+    const major = ['bj','tj','jn','qd','yt','wfs','zb','ly','jn2','ta','wh','rz','hz','lc','de','bz','dy','zz','yz','pl','cz','hj','bd','lf','xt'];
+    for (const k of major) {
+      if (!N[k]) continue;
+      const o = document.createElement('option');
+      o.value = k; o.textContent = N[k][0];
+      destsel.appendChild(o);
+    }
+    destsel.addEventListener('change', () => {
+      dest = destsel.value || null;
+      destsel.classList.toggle('on', !!dest);
+      render();
+    });
+  }
+
+  /* ---------- 表格排序 ---------- */
+  for (const th of document.querySelectorAll('th[data-sort]')) {
+    th.addEventListener('click', () => {
+      const k = th.dataset.sort;
+      if (sortKey === k) sortDir = -sortDir; else { sortKey = k; sortDir = -1; }
+      render();
+    });
+  }
+
   /* ---------- legend ramp ---------- */
+  function renderRampLabels() {
+    document.querySelectorAll('#ramp .step').forEach((d, i) => {
+      d.querySelector('.lab').textContent = binRange(i);
+    });
+  }
   (() => {
     const r = $('#ramp');
     RAMP.forEach((v, i) => {
@@ -584,17 +684,16 @@
   const map = $('#map');
   const tip = $('#tip');
   const segRefs = new Map();
-  // 箭头只标当日方向性最强的 10 条路段（排名依据 fwd/bwd 比值，与日期无关，
-  // 因此同批路段在返程日会整齐反向）。asym < 0.10 视为双向均衡，不标。
-  const ARROW_MIN = 0.10, ARROW_N = 10;
+  // 箭头逐路段标注：asym ≥ 0.12 即标出该路段的主导流向（不再只取全网前 10 条，
+  // 否则平台日整天没有方向信息）。定向模式下方向已由目的地唯一确定，箭头改为隐藏。
+  const ARROW_MIN = 0.12;
   const arrowSet = new Set();
   const hasArrow = m => arrowSet.has(m.i);
 
   function drawMap() {
     arrowSet.clear();
     const ms = MODELS[current];
-    for (const m of [...ms].sort((a, b) => b.asym - a.asym).slice(0, ARROW_N))
-      if (m.asym >= ARROW_MIN) arrowSet.add(m.i);
+    if (!dest) for (const m of ms) if (m.asym >= ARROW_MIN) arrowSet.add(m.i);
     map.textContent = '';
     map.appendChild(el('path', {
       class: 'land',
@@ -632,8 +731,11 @@
       }
 
       const hit = el('line', { class:'hit', x1, y1, x2, y2, tabindex:'0', role:'img' });
+      const dd0 = dirOf(m);
       const label = `${A[0]}—${B[0]} ${m.hw}，${m.lanes} 车道，${m.ra === m.rb ? m.ra : m.ra + '至' + m.rb}，`
-        + `${m.tot.toFixed(1)} 万辆次/日，主导方向 ${m.domFwd ? A[0]+'→'+B[0] : B[0]+'→'+A[0]} ${m.dom.toFixed(1)} 万辆次`;
+        + `双向合计 ${m.tot.toFixed(1)} 万辆次/日，`
+        + `${A[0]}→${B[0]} ${m.fAB.toFixed(1)}，${B[0]}→${A[0]} ${m.fBA.toFixed(1)} 万辆次`
+        + (dd0 ? `；朝 ${N[dest][0]} 方向 ${dd0.f.toFixed(1)} 万辆次，定向饱和度 ${vcShown(m).toFixed(2)}` : '');
       hit.setAttribute('aria-label', label);
       g.appendChild(hit);
       map.appendChild(g);
@@ -720,37 +822,46 @@
   }
 
   function showTip(m, A, B, hit) {
-    const i = binOf(m.tot);
+    const dd = dirOf(m);
+    const i = binOf(dd ? dd.f : m.tot);
     tip.textContent = '';
     const n1 = document.createElement('div'); n1.className = 't-name';
     n1.textContent = `${A[0]} — ${B[0]}`; tip.appendChild(n1);
 
     const big = document.createElement('div'); big.className = 't-big';
-    big.textContent = m.tot.toFixed(1);
-    const su = document.createElement('small'); su.textContent = ' 万辆次/日（双向合计）';
-    big.appendChild(su); tip.appendChild(big);
+    if (dd) {
+      big.textContent = dd.f.toFixed(1);
+      const s0 = document.createElement('small');
+      s0.textContent = ` 万辆次/日（朝 ${N[dest][0]} 方向）`;
+      big.appendChild(s0);
+    } else {
+      big.textContent = m.tot.toFixed(1);
+      const su = document.createElement('small'); su.textContent = ' 万辆次/日（双向合计）';
+      big.appendChild(su);
+    }
+    tip.appendChild(big);
 
-    const r1 = document.createElement('div'); r1.className = 't-row';
-    r1.appendChild(Object.assign(document.createElement('span'), {class:'t-key'}));
-    const b1 = document.createElement('b'); b1.textContent = m.fAB.toFixed(1);
-    r1.appendChild(b1);
-    r1.appendChild(document.createTextNode(` 万辆次 ${A[0]}→${B[0]}`));
-    tip.appendChild(r1);
-
-    const r2 = document.createElement('div'); r2.className = 't-row';
-    r2.appendChild(Object.assign(document.createElement('span'), {class:'t-key'}));
-    const b2 = document.createElement('b'); b2.textContent = m.fBA.toFixed(1);
-    r2.appendChild(b2);
-    r2.appendChild(document.createTextNode(` 万辆次 ${B[0]}→${A[0]}`));
-    tip.appendChild(r2);
+    const mk = (val, from, to, dim) => {
+      const r = document.createElement('div');
+      r.className = 't-row' + (dd ? (dim ? ' t-off' : ' t-on') : '');
+      r.appendChild(Object.assign(document.createElement('span'), {class:'t-key' + (dim ? ' alt' : '')}));
+      const b = document.createElement('b'); b.textContent = val.toFixed(1);
+      r.appendChild(b);
+      r.appendChild(document.createTextNode(` 万辆次 ${N[from][0]}→${N[to][0]}`));
+      return r;
+    };
+    tip.appendChild(mk(m.fAB, m.a, m.b, dd ? dd.from !== m.a : false));
+    tip.appendChild(mk(m.fBA, m.b, m.a, dd ? dd.from !== m.b : true));
 
     const d = document.createElement('div'); d.className = 't-dom';
     d.textContent = `${m.hw} · ${m.lanes} 车道 · ${m.ra === m.rb ? m.ra : m.ra + '→' + m.rb}`
-      + ` · 饱和度 ${m.vc.toFixed(2)}`
-      + (hasArrow(m) ? ` · 主导 ${m.domFwd ? A[0]+'→'+B[0] : B[0]+'→'+A[0]}` : ' · 双向均衡');
+      + (dd
+          ? ` · 定向饱和度 ${vcShown(m).toFixed(2)}（双向 ${m.vc.toFixed(2)}）`
+            + (dd.amb ? ` · 两端与 ${N[dest][0]} 距离接近，方向按主导流向` : '')
+          : ` · 饱和度 ${m.vc.toFixed(2)}`
+            + (hasArrow(m) ? ` · 主导 ${m.domFwd ? A[0]+'→'+B[0] : B[0]+'→'+A[0]}` : ' · 双向均衡'));
     tip.appendChild(d);
 
-    tip.querySelectorAll('.t-key')[1].classList.add('alt');
     tip.style.opacity = '1';
     positionTip(hit);
   }
@@ -871,6 +982,9 @@
     const t = $('#tiles'); t.textContent = '';
     let peak = ms[0];
     for (const m of ms) if (m.vc > peak.vc) peak = m;
+    // 定向模式下另取「朝目的地」饱和度最高的一段
+    let peakD = ms[0];
+    for (const m of ms) if (vcShown(m) > vcShown(peakD)) peakD = m;
     const gate = ms.filter(m => m.crossJJJ);
     const gateFlow = gate.reduce((s,m) => s + m.tot, 0);
     const gateTop = [...gate].sort((a,b) => b.tot - a.tot)[0];
@@ -880,8 +994,12 @@
     const items = [
       ['山东省域日流量', day.target.toFixed(0), '万辆次',
        `${day.name} · 分时峰值 ${s[pi].toFixed(1)} 万辆次/时（${String(pi).padStart(2,'0')}:00）`],
-      ['最拥堵路段（按饱和度）', peak.tot.toFixed(1), '万辆次/日',
-       `${N[peak.a][0]}—${N[peak.b][0]} ${peak.hw} · ${peak.lanes} 车道 · 饱和度 ${peak.vc.toFixed(2)}`],
+      dest
+        ? ['朝 ' + N[dest][0] + ' 最堵路段', shown(peakD).toFixed(1), '万辆次/日',
+           `${N[peakD.a][0]}—${N[peakD.b][0]} ${peakD.hw} · ${peakD.lanes} 车道 · `
+           + `该向 ${N[dirOf(peakD).from][0]}→${N[dirOf(peakD).to][0]} · 定向饱和度 ${vcShown(peakD).toFixed(2)}`]
+        : ['最拥堵路段（按饱和度）', peak.tot.toFixed(1), '万辆次/日',
+           `${N[peak.a][0]}—${N[peak.b][0]} ${peak.hw} · ${peak.lanes} 车道 · 饱和度 ${peak.vc.toFixed(2)}`],
       ['京津冀入鲁流量', gateFlow.toFixed(0), '万辆次/日',
        `${gate.length} 条跨省通道 · 最重 ${gateTop.hw} ${N[gateTop.a][0]}—${N[gateTop.b][0]} ${gateTop.tot.toFixed(1)}`],
       ['峰值小时', String(pi).padStart(2,'0') + ':00', '',
@@ -898,16 +1016,27 @@
   }
 
   /* ---------- table twin ---------- */
+  let sortKey = 'tot', sortDir = -1;   // -1 = 降序
+  function sortVal(m, k) {
+    if (k === 'tot') return m.tot;
+    if (k === 'fAB') return m.fAB;
+    if (k === 'fBA') return m.fBA;
+    if (k === 'vc')  return vcShown(m);
+    return m.tot;
+  }
   function renderTable(day, ms) {
     const tb = $('#tbody'); tb.textContent = '';
-    [...ms].sort((a,b) => b.tot - a.tot).forEach((m, i) => {
+    const D = dest ? N[dest][0] : null;
+    const rows = [...ms].sort((a, b) => (sortVal(a, sortKey) - sortVal(b, sortKey)) * sortDir);
+    rows.forEach((m, i) => {
       const tr = document.createElement('tr');
+      const A = N[m.a][0], B = N[m.b][0];
       const cells = [
-        [String(i+1), 'l'], [N[m.a][0] + '—' + N[m.b][0], 'l name'], [m.hw, 'l'],
+        [String(i+1), 'l'], [A + '—' + B, 'l name'], [m.hw, 'l'],
         [m.ra === m.rb ? m.ra : m.ra + ' · ' + m.rb, 'l'],
         [String(m.lanes), ''], [`${m.tot.toFixed(1)}  ${SEVNAME[binOf(m.tot)]}`, ''],
-        [`${m.dom.toFixed(1)}  ${m.domFwd ? N[m.a][0]+'→'+N[m.b][0] : N[m.b][0]+'→'+N[m.a][0]}`, ''],
-        [m.vc.toFixed(2), '']
+        [`${A}→${B}  ${m.fAB.toFixed(1)}`, 'l dirpair'], [`${B}→${A}  ${m.fBA.toFixed(1)}`, 'l dirpair'],
+        [vcShown(m).toFixed(2), '']
       ];
       for (const [txt, cls] of cells) {
         const td = document.createElement('td');
@@ -917,12 +1046,30 @@
       const sw = document.createElement('span'); sw.className = 'swatch';
       sw.style.background = `var(${RAMP[binOf(m.tot)]})`;
       tr.children[5].prepend(sw);
-      const vc = tr.children[7];
-      if (m.vc >= 1) vc.className = 'vc-hi'; else if (m.vc >= 0.9) vc.className = 'vc-mid';
+      // 定向模式：把朝目的地那一向标出，另一向压暗
+      if (D) {
+        const d = dirOf(m), cAB = tr.children[6], cBA = tr.children[7];
+        if (d.from === m.a) { cAB.className = 'l dirpair dir-on'; cBA.className = 'l dirpair dir-off'; }
+        else                { cBA.className = 'l dirpair dir-on'; cAB.className = 'l dirpair dir-off'; }
+        if (d.amb) { cAB.title = cBA.title = '两端与' + D + '距离接近，方向不明确，按主导流向显示'; }
+      }
+      const vc = tr.children[8];
+      const v = vcShown(m);
+      if (v >= 1) vc.className = 'vc-hi'; else if (v >= 0.9) vc.className = 'vc-mid';
       tb.appendChild(tr);
     });
+    // 表头带方向名，随目的地更新
+    $('#thAB').textContent = '向 ' + (dest === null ? 'A→B' : '方向 A→B');
+    $('#thBA').textContent = '向 ' + (dest === null ? 'B→A' : '方向 B→A');
+    $('#thvc').textContent = dest === null ? '饱和度' : '定向饱和度';
+    for (const th of document.querySelectorAll('th[data-sort]'))
+      th.classList.remove('asc', 'desc');
+    const act = document.querySelector('th[data-sort="' + sortKey + '"]');
+    if (act) act.classList.add(sortDir < 0 ? 'desc' : 'asc');
     $('#tablesub').textContent =
-      `${day.d} ${day.name} · 全部 ${ms.length} 条路段（含京津冀走廊段），按双向合计流量降序。`
+      `${day.d} ${day.name} · 全部 ${ms.length} 条路段（含京津冀走廊段）。`
+      + `两个方向各占一列并直接写出城市对，可点表头排序。`
+      + (dest ? `当前高亮为朝 ${D} 的那一向。` : '')
       + `色块与地图拥堵等级一一对应，等级文字可独立阅读，不依赖颜色。`;
   }
 
@@ -930,23 +1077,39 @@
   function render() {
     const day = DAYS.find(d => d.id === current);
     const ms = MODELS[current];
+    TH = dest ? EDGES_DIR : EDGES;          // 定向模式的量级约为合计的一半，阈值同步切换
 
     for (const b of daybtns.children)
       b.setAttribute('aria-pressed', b.dataset.id === current ? 'true' : 'false');
 
     const top = [...ms].sort((a,b) => b.tot - a.tot)[0];
     const gate = ms.filter(m => m.crossJJJ).reduce((s,m) => s + m.tot, 0);
+    const D = dest ? N[dest][0] : null;
+    const ambN = dest ? ms.filter(m => dirOf(m).amb).length : 0;
     $('#mapsub').textContent =
       `${day.d} ${day.wd} · ${day.name} · 山东省域 ${day.target} 万辆次/日，`
       + `其中经京津冀入鲁 ${gate.toFixed(0)} 万辆次/日；`
-      + `流量最大路段 ${N[top.a][0]}—${N[top.b][0]} ${top.hw} ${top.tot.toFixed(1)} 万辆次。`
-      + `陆域与走向为示意，悬停或键盘聚焦任一路段可读数值。`;
+      + (D
+          ? `已按目的地定向：颜色为各路段朝 ${D} 那一向的单向流量`
+            + (ambN ? `，其中 ${ambN} 条路段两端与 ${D} 距离接近、方向不明确，已按主导流向显示。` : `。`)
+          : `流量最大路段 ${N[top.a][0]}—${N[top.b][0]} ${top.hw} ${top.tot.toFixed(1)} 万辆次。`)
+      + `陆域与走向为示意，悬停或键盘聚焦任一路段可读两个方向的数值。`;
     $('#hoursub').textContent =
       `${day.d} ${day.name} 的分时形态（淡线为其余各日，仅作对照，非独立数据系列）。`;
 
+    // 图例
+    $('#ramptitle').textContent = D
+      ? `拥堵等级 · 朝 ${D} 方向的单向流量（万辆次/日）`
+      : '拥堵等级 · 双向合计日流量（万辆次/日）';
+    $('#arrowkey').hidden = !!D;
+    $('#destkey').hidden = !D;
+    if (D) $('#destkeytxt').textContent =
+      `已按目的地定向：颜色只看朝 ${D} 那一向，箭头已隐藏（方向由目的地确定）；双向合计见表格视图`;
+    renderRampLabels();
+
     drawMap();
     for (const [k, r] of segRefs) {
-      const bin = RAMP[binOf(r.m.tot)];
+      const bin = RAMP[binOf(shown(r.m))];
       r.stroke.style.stroke = `var(${bin})`;
       if (r.arrow) r.arrow.style.fill = `var(${bin})`;
     }
