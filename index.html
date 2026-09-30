@@ -218,6 +218,9 @@
   .node-out   { fill: none; stroke: var(--text-primary); stroke-width: 1.6; }
   .node-origin      { fill: var(--text-primary); }
   .node-origin-ring { fill: none; stroke: var(--text-primary); stroke-width: 1.4; }
+  /* 设定目的地的地图标记：双环 + 2px 表面色分隔环（避免与通道起点方框混淆） */
+  .dest-mark       { fill: var(--series-1); stroke: var(--surface-1); stroke-width: 2; }
+  .dest-mark-outer { fill: none; stroke: var(--series-1); stroke-width: 1.4; }
   .nlabel.strong    { font-size: 12.5px; font-weight: 620; fill: var(--text-primary); }
   .refdot    { fill: var(--text-muted); }
   .sealab    { fill: var(--text-muted); font-size: 11px; letter-spacing: .35em;
@@ -303,7 +306,7 @@
 <div class="wrap">
 
   <h1>北京—山东高速通道假期流量分布预测 · 2026 国庆假期</h1>
-  <p class="sub">按天切换的京津冀鲁路网断面流量分布，覆盖<b>京沪（G2）、京台（G3）、长深（G25）、京港澳（G4）/青银（G20）</b>四条北京进入山东的主通道。<strong>线宽 = 车道数；颜色 = 拥堵等级</strong>，按国内路况图的语义热度色标，绿（畅通）→黄（缓行）→红（拥堵）→紫（极端拥堵），分档阈值见图例与表格视图；路段上的箭头指向当日主导流向。用<b>「设定目的地」</b>选一个城市（济南 / 青岛 / 烟台 …），全图即切换为<b>只看朝该城市那一侧的车流</b>，颜色、拥堵分档与「最堵路段」都改用这个方向的口径；两个方向的原始数值始终在提示框与表格里分列给出。</p>
+  <p class="sub">按天切换的京津冀鲁路网断面流量分布，覆盖<b>京沪（G2）、京台（G3）、长深（G25）、京港澳（G4）/青银（G20）</b>四条北京进入山东的主通道。<strong>线宽 = 车道数；颜色 = 拥堵等级</strong>，按国内路况图的语义热度色标，绿（畅通）→黄（缓行）→红（拥堵）→紫（极端拥堵），分档阈值见图例与表格视图；路段上的箭头指向当日主导流向。用<b>「设定目的地」</b>选一个城市（北京 / 济南 / 青岛 / 烟台 …），全图即切换为<b>只看朝该城市那一侧的车流</b>，颜色、拥堵分档与「最堵路段」都改用这个方向的口径；两个方向的原始数值始终在提示框与表格里分列给出。</p>
   <p class="caveat">本图为<b>结构化推演结果，不是官方发布数据</b>：陆域与路网走向为示意，流量由路网等级、目的地权重、逐日出行/返程比例与分时曲线推算得到。用于研判形态与相对关系，不能替代各地高速公路运营单位与公安交管部门的实测断面流量。</p>
 
   <!-- one filter row, above everything it scopes -->
@@ -352,6 +355,10 @@
       <div class="widthkey">
         <svg width="14" height="14" aria-hidden="true"><rect x="2" y="2" width="10" height="10" rx="2" fill="currentColor"/></svg>
         实心方框 = 通道起点（北京）
+      </div>
+      <div class="widthkey">
+        <svg width="16" height="16" aria-hidden="true"><circle cx="8" cy="8" r="5" fill="currentColor"/><circle cx="8" cy="8" r="7.5" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>
+        <span id="destmarkkey" hidden>双环圆点 = 你设定的目的地</span>
       </div>
       <div class="widthkey">
         <svg width="12" height="12" aria-hidden="true"><rect x="3" y="3" width="6" height="6" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
@@ -664,8 +671,10 @@
 
   /* ---------- 设定目的地 ---------- */
   const destpanel = $('#destpanel'), destchips = $('#destchips'), dstatus = $('#dstatus');
-  // 快选城市：省会 + 两个热门目的地 + 半岛/胶东旅游方向，够覆盖多数「我要去 X」的查询
-  const POPULAR = ['jn','qd','yt','ly','wfs','jn2','yz','wh'];
+  // 快选城市按「被查询的概率」排，而不是按地理顺序：北京是全图的起点，也是返程的
+  // 最终目的地（这张图 10-06/10-07 讲的就是往北京走），所以必须排第 1；其后是天津
+  // 与省会济南，再是半岛/胶东与鲁南的热门目的地。
+  const POPULAR = ['bj','tj','jn','qd','yt','ly','wfs','jn2','yz','wh'];
   // 「更多」下拉从 N 全量生成——手维护名单曾漏掉 5 个出省通道口（石家庄/新沂/徐州/连云港/郑州）
   const REST = Object.keys(N).filter(k => !POPULAR.includes(k));
   const destsel = document.createElement('select');
@@ -851,6 +860,11 @@
       const cls = 'nlabel' + (kind === 'out' ? ' xs' : '') + (kind === 'origin' ? ' strong' : '');
       const t = el('text', { class: cls, x: x + dx, y: y + dy, 'text-anchor': anchor });
       t.textContent = nm; map.appendChild(t);
+      // 设定目的地后，在地图上标出那个点——否则用户点了 chip 也不知道自己指的是哪儿
+      if (k === dest) {
+        map.appendChild(el('circle', { class:'dest-mark-outer', cx:x, cy:y, r:11 }));
+        map.appendChild(el('circle', { class:'dest-mark', cx:x, cy:y, r:7 }));
+      }
     }
 
     // 地物参照
@@ -1072,7 +1086,7 @@
       ['山东省域日流量', day.target.toFixed(0), '万辆次',
        `${day.name} · 分时峰值 ${s[pi].toFixed(1)} 万辆次/时（${String(pi).padStart(2,'0')}:00）`],
       dest
-        ? ['朝 ' + N[dest][0] + ' 最堵路段', shown(peakD).toFixed(1), '万辆次/日',
+        ? ['朝 ' + N[dest][0] + ' 最堵路段（按饱和度）', shown(peakD).toFixed(1), '万辆次/日',
            `${N[peakD.a][0]}—${N[peakD.b][0]} ${peakD.hw} · ${peakD.lanes} 车道 · `
            + `该向 ${N[dirOf(peakD).from][0]}→${N[dirOf(peakD).to][0]} · 定向饱和度 ${vcShown(peakD).toFixed(2)}`]
         : ['最拥堵路段（按饱和度）', peak.tot.toFixed(1), '万辆次/日',
@@ -1199,6 +1213,7 @@
       : '拥堵等级 · 双向合计日流量（万辆次/日）';
     $('#arrowkey').hidden = !!D;
     $('#destkey').hidden = !D;
+    $('#destmarkkey').parentElement.hidden = !D;
     if (D) $('#destkeytxt').textContent =
       `已设定目的地 ${D}：颜色只看朝该城市那一向，箭头已隐藏（方向由目的地唯一确定，不再需要）；双向合计见表格视图`;
     renderRampLabels();
