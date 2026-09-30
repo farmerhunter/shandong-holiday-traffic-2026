@@ -117,6 +117,41 @@
   .combo:hover { background-color: var(--surface-2); }
   .combo:focus-visible { outline: 2px solid var(--series-1); outline-offset: 2px; }
   .combo.on { color: var(--text-primary); border-color: var(--text-muted); }
+
+  /* ---------- 设定目的地 ----------
+     它不是普通筛选：它改的是整张图的着色含义（口径 + 分档阈值 + 最高拥堵口径），
+     所以从筛选行里独立出来，自带标题与常驻说明，放在所有被它作用的内容之上。 */
+  .destpanel {
+    margin: -6px 0 18px; padding: 12px 14px 13px;
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px;
+  }
+  .destpanel.on { border-color: var(--series-1); }
+  .desthead { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 9px; }
+  .desthead h2 { font-size: 13.5px; font-weight: 650; margin: 0; }
+  .desthead .dwhy { color: var(--text-muted); font-size: 12px; flex: 1 1 380px; }
+  .desthead .dwhy b { color: var(--text-secondary); font-weight: 600; }
+  .destrow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .dchip {
+    appearance: none; cursor: pointer; font: inherit; font-size: 12.5px;
+    background: transparent; color: var(--text-secondary);
+    border: 1px solid var(--border); border-radius: 999px;
+    padding: 5px 13px 6px; min-height: 30px; line-height: 1.2;
+  }
+  .dchip:hover { background: var(--surface-2); }
+  .dchip:focus-visible { outline: 2px solid var(--series-1); outline-offset: 2px; }
+  .dchip[aria-pressed="true"] { background: var(--series-1); border-color: var(--series-1); color: #fff; }
+  .dmore { position: relative; display: inline-flex; }
+  .dmore .combo { border-radius: 999px; padding-right: 26px; }
+  .dstatus { margin-top: 10px; font-size: 12px; color: var(--text-muted); }
+  .dstatus b { color: var(--text-primary); font-weight: 600; }
+  .dclear {
+    appearance: none; cursor: pointer; font: inherit; font-size: 12px;
+    background: transparent; color: var(--text-secondary);
+    border: 1px solid var(--border); border-radius: 999px;
+    padding: 3px 11px 4px; margin-left: 8px; min-height: 22px;
+  }
+  .dclear:hover { background: var(--surface-2); }
+  .dclear:focus-visible { outline: 2px solid var(--series-1); outline-offset: 2px; }
   .ghost {
     appearance: none; cursor: pointer; font: inherit; font-size: 12.5px;
     background: transparent; color: var(--text-secondary);
@@ -268,18 +303,26 @@
 <div class="wrap">
 
   <h1>北京—山东高速通道假期流量分布预测 · 2026 国庆假期</h1>
-  <p class="sub">按天切换的京津冀鲁路网断面流量分布，覆盖<b>京沪（G2）、京台（G3）、长深（G25）、京港澳（G4）/青银（G20）</b>四条北京进入山东的主通道。<strong>线宽 = 车道数；颜色 = 拥堵等级</strong>，按国内路况图的语义热度色标，绿（畅通）→黄（缓行）→红（拥堵）→紫（极端拥堵），分档阈值见图例与表格视图；路段上的箭头指向当日主导流向。用<b>「定向」</b>选一个目的地，可把颜色切换为该路段<b>朝该目的地那一向的单向流量</b>，两个方向的数值始终在提示框与表格里分列给出。</p>
+  <p class="sub">按天切换的京津冀鲁路网断面流量分布，覆盖<b>京沪（G2）、京台（G3）、长深（G25）、京港澳（G4）/青银（G20）</b>四条北京进入山东的主通道。<strong>线宽 = 车道数；颜色 = 拥堵等级</strong>，按国内路况图的语义热度色标，绿（畅通）→黄（缓行）→红（拥堵）→紫（极端拥堵），分档阈值见图例与表格视图；路段上的箭头指向当日主导流向。用<b>「设定目的地」</b>选一个城市（济南 / 青岛 / 烟台 …），全图即切换为<b>只看朝该城市那一侧的车流</b>，颜色、拥堵分档与「最堵路段」都改用这个方向的口径；两个方向的原始数值始终在提示框与表格里分列给出。</p>
   <p class="caveat">本图为<b>结构化推演结果，不是官方发布数据</b>：陆域与路网走向为示意，流量由路网等级、目的地权重、逐日出行/返程比例与分时曲线推算得到。用于研判形态与相对关系，不能替代各地高速公路运营单位与公安交管部门的实测断面流量。</p>
 
   <!-- one filter row, above everything it scopes -->
-  <div class="filters" role="group" aria-label="预测日与目的地筛选">
+  <div class="filters" role="group" aria-label="预测日筛选">
     <span class="flabel">预测日</span>
     <div id="daybtns" style="display:flex; gap:6px; flex-wrap:wrap;"></div>
-    <span class="flabel" style="margin-left:6px;">定向</span>
-    <select id="destsel" class="combo" aria-label="选择目的地，着色为朝该方向的单向流量"></select>
     <span class="spacer"></span>
     <button class="ghost" id="tablebtn" aria-pressed="false" aria-controls="tableview">表格视图</button>
     <button class="ghost" id="themebtn">深色</button>
+  </div>
+
+  <!-- 设定目的地：独立分组，紧贴它所作用的全部内容之上（统计块 / 地图 / 分时 / 表格） -->
+  <div class="destpanel" id="destpanel" role="group" aria-labelledby="desttitle">
+    <div class="desthead">
+      <h2 id="desttitle">设定目的地</h2>
+      <span class="dwhy">选一个城市后，全图改为<b>只看朝该城市那一侧的车流</b>：颜色、拥堵分档阈值与「最堵路段」都切换成这个方向的口径，两个方向的原始数值仍在提示框和表格里分列给出。</span>
+    </div>
+    <div class="destrow" id="destchips"></div>
+    <div class="dstatus" id="dstatus"></div>
   </div>
 
   <!-- stat tiles -->
@@ -345,7 +388,7 @@
   <footer>
     口径：流量为小客车为主的断面流量估算值，双向合计。标定系数由<b>山东省内路段</b>反推（使省域日合计等于折线所示总量），京津冀走廊段按同一系数折算，因此扩展路网后山东口径的数字不变。
     饱和度 = 日流量 ÷ 该路段按车道数估算的通行能力（4 车道 11.6、6 车道 17.4、8 车道 23.2 万辆次/日），仅为量级参照，非 HCM 意义上的通行能力。
-    <b>定向模式</b>：选定目的地后，颜色与「朝该目的地」那一向的单向流量对照，分档阈值同步切换（合计 9/12/15 → 单向 6/8/10，因单向约为合计的一半）。方向判定：端点即目的地时直接定向，否则沿该路段行进是否让到目的地的球面距离递减；两端距离相差 2% 以内视为方向不明确，回落到该路段主导流向。定向饱和度按车道对半分配估算（单向通行能力 = 双向估算值 ÷ 2），该假设使定向饱和度约为双向值的两倍，仅作方向间比较之用。
+    <b>设定目的地后</b>：选定目的地后，颜色与「朝该目的地」那一向的单向流量对照，分档阈值同步切换（合计 9/12/15 → 单向 6/8/10，因单向约为合计的一半）。方向判定：端点即目的地时直接定向，否则沿该路段行进是否让到目的地的球面距离递减；两端距离相差 2% 以内视为方向不明确，回落到该路段主导流向。定向饱和度按车道对半分配估算（单向通行能力 = 双向估算值 ÷ 2），该假设使定向饱和度约为双向值的两倍，仅作方向间比较之用。
     京沪/京台在廊坊—天津—沧州段为并线路廊，图中以三条平行线示意，不代表各线车道数。
     假期免费通行按 10 月 1 日 00:00 至 10 月 7 日 24:00 假设，实际以国务院办公厅放假安排及主管部门通知为准。
   </footer>
@@ -619,26 +662,60 @@
     daybtns.appendChild(b);
   });
 
-  /* ---------- 目的地定向 ---------- */
-  const destsel = $('#destsel');
+  /* ---------- 设定目的地 ---------- */
+  const destpanel = $('#destpanel'), destchips = $('#destchips'), dstatus = $('#dstatus');
+  // 快选城市：省会 + 两个热门目的地 + 半岛/胶东旅游方向，够覆盖多数「我要去 X」的查询
+  const POPULAR = ['jn','qd','yt','ly','wfs','jn2','yz','wh'];
+  // 「更多」下拉从 N 全量生成——手维护名单曾漏掉 5 个出省通道口（石家庄/新沂/徐州/连云港/郑州）
+  const REST = Object.keys(N).filter(k => !POPULAR.includes(k));
+  const destsel = document.createElement('select');
+  destsel.className = 'combo';
+  destsel.setAttribute('aria-label', '更多目的地，着色为朝该城市那一侧的单向流量');
+
+  function setDest(k) {
+    dest = k || null;
+    destsel.value = POPULAR.includes(dest || '') ? '' : (dest || '');
+    render();
+  }
+
+  // 「不区分方向」——默认态
   {
+    const b = document.createElement('button');
+    b.className = 'dchip'; b.type = 'button'; b.dataset.k = '';
+    b.setAttribute('aria-pressed', 'false');
+    b.textContent = '不区分方向';
+    b.addEventListener('click', () => setDest(null));
+    destchips.appendChild(b);
+  }
+  for (const k of POPULAR) {
+    const b = document.createElement('button');
+    b.className = 'dchip'; b.type = 'button'; b.dataset.k = k;
+    b.setAttribute('aria-pressed', 'false');
+    b.textContent = N[k][0];
+    b.addEventListener('click', () => setDest(dest === k ? null : k));
+    destchips.appendChild(b);
+  }
+  {
+    const wrap = document.createElement('span');
+    wrap.className = 'dmore';
     const o0 = document.createElement('option');
-    o0.value = ''; o0.textContent = '双向合计（不定向）';
+    o0.value = ''; o0.textContent = '更多城市…';
     destsel.appendChild(o0);
-    // 通道终点与主要目的地优先，其余按省分组
-    const major = ['bj','tj','jn','qd','yt','wfs','zb','ly','jn2','ta','wh','rz','hz','lc','de','bz','dy','zz','yz','pl','cz','hj','bd','lf','xt'];
-    for (const k of major) {
-      if (!N[k]) continue;
+    for (const k of REST) {
       const o = document.createElement('option');
       o.value = k; o.textContent = N[k][0];
       destsel.appendChild(o);
     }
-    destsel.addEventListener('change', () => {
-      dest = destsel.value || null;
-      destsel.classList.toggle('on', !!dest);
-      render();
-    });
+    destsel.addEventListener('change', () => setDest(destsel.value || null));
+    wrap.appendChild(destsel);
+    destchips.appendChild(wrap);
   }
+  const dclear = document.createElement('button');
+  dclear.className = 'dclear'; dclear.type = 'button';
+  dclear.textContent = '清除';
+  dclear.hidden = true;
+  dclear.addEventListener('click', () => setDest(null));
+  dstatus.appendChild(dclear);
 
   /* ---------- 表格排序 ---------- */
   for (const th of document.querySelectorAll('th[data-sort]')) {
@@ -1082,6 +1159,25 @@
     for (const b of daybtns.children)
       b.setAttribute('aria-pressed', b.dataset.id === current ? 'true' : 'false');
 
+    for (const b of destchips.querySelectorAll('.dchip'))
+      b.setAttribute('aria-pressed', (b.dataset.k || null) === dest ? 'true' : 'false');
+    destpanel.classList.toggle('on', !!dest);
+    dclear.hidden = !dest;
+    dstatus.querySelector('.dstate')?.remove();
+    {
+      const lead = document.createElement('span');
+      lead.className = 'dstate';
+      if (dest) {
+        lead.append(document.createTextNode('当前：只显示朝 '));
+        const bb = document.createElement('b'); bb.textContent = N[dest][0];
+        lead.append(bb, document.createTextNode(
+          ` 方向的车流 · 拥堵分档已切换为单向口径（${EDGES_DIR[1]} / ${EDGES_DIR[2]} / ${EDGES_DIR[3]} 万辆次/日）`));
+      } else {
+        lead.textContent = '当前：未设定目的地 —— 颜色为双向合计口径。点上面任一城市，即可切成「我正往那边走」的单向视角。';
+      }
+      dstatus.insertBefore(lead, dclear);
+    }
+
     const top = [...ms].sort((a,b) => b.tot - a.tot)[0];
     const gate = ms.filter(m => m.crossJJJ).reduce((s,m) => s + m.tot, 0);
     const D = dest ? N[dest][0] : null;
@@ -1090,7 +1186,7 @@
       `${day.d} ${day.wd} · ${day.name} · 山东省域 ${day.target} 万辆次/日，`
       + `其中经京津冀入鲁 ${gate.toFixed(0)} 万辆次/日；`
       + (D
-          ? `已按目的地定向：颜色为各路段朝 ${D} 那一向的单向流量`
+          ? `已设定目的地 ${D}：颜色为各路段朝 ${D} 那一向的单向流量`
             + (ambN ? `，其中 ${ambN} 条路段两端与 ${D} 距离接近、方向不明确，已按主导流向显示。` : `。`)
           : `流量最大路段 ${N[top.a][0]}—${N[top.b][0]} ${top.hw} ${top.tot.toFixed(1)} 万辆次。`)
       + `陆域与走向为示意，悬停或键盘聚焦任一路段可读两个方向的数值。`;
@@ -1104,7 +1200,7 @@
     $('#arrowkey').hidden = !!D;
     $('#destkey').hidden = !D;
     if (D) $('#destkeytxt').textContent =
-      `已按目的地定向：颜色只看朝 ${D} 那一向，箭头已隐藏（方向由目的地确定）；双向合计见表格视图`;
+      `已设定目的地 ${D}：颜色只看朝该城市那一向，箭头已隐藏（方向由目的地唯一确定，不再需要）；双向合计见表格视图`;
     renderRampLabels();
 
     drawMap();
